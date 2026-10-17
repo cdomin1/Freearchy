@@ -48,12 +48,13 @@ if [ "$SKIP_CAVA" != "1" ]; then
     [ -d "$BUILD_DIR/cava" ] || git clone --depth 1 "$CAVA_REPO" \
         "$BUILD_DIR/cava"
     # strict-ANSI/POSIX feature macros hide BSD symbols (ENOTSUP,
-    # CLOCK_MONOTONIC) that the pipewire/sndio inputs need on FreeBSD
+    # CLOCK_MONOTONIC); oss.c has an upstream '#inlcude' typo
     (cd "$BUILD_DIR/cava" && ./autogen.sh && ./configure --prefix=/usr/local \
         && sed -i '' -e 's/-std=c99/-std=gnu99/' \
             -e 's/-D_POSIX_C_SOURCE=200809L//g' \
             -e 's/-D_POSIX_SOURCE//g' \
             -e 's/-D_XOPEN_SOURCE_EXTENDED//g' Makefile \
+        && sed -i '' 's/^#inlcude/#include/' input/oss.c \
         && gmake && doas gmake install) 2>&1 || \
         echo "    warn: libcava build failed — visualizer disabled"
 fi
