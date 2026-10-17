@@ -211,6 +211,8 @@ impl PoolGuard {
 
 fn zfs_layout(dev: &str, log: &dyn Fn(&str)) -> Result<PoolGuard> {
     log(&format!("Creating zpool {POOL}"));
+    // Tolerate leftovers from a previous failed run in this boot.
+    let _ = util::run("zpool", &["destroy", "-f", POOL]);
     util::run("zpool", &[
         "create", "-f", "-o", &format!("altroot={MNT}"),
         "-O", "compress=lz4", "-O", "atime=off", "-O", "mountpoint=none",
