@@ -5,6 +5,7 @@ mod doctor;
 mod image;
 mod install;
 mod install_system;
+mod install_tui;
 mod packages;
 mod theme;
 mod util;

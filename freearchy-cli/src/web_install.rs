@@ -147,10 +147,13 @@ fn api_install(mut request: tiny_http::Request, shared: &Arc<Shared>) -> Result<
             disk: req.disk,
             hostname: req.hostname,
             username: req.username,
+            fullname: None,
+            email: None,
+            keymap: "us".into(),
             password: req.password.filter(|p| !p.is_empty()),
         };
-        let mut state = shared2.state.lock().unwrap();
-        *state = match install_system::execute(&spec, &log) {
+        let result = install_system::execute(&spec, &log);
+        *shared2.state.lock().unwrap() = match result {
             Ok(()) => InstallState::Done,
             Err(e) => InstallState::Failed(format!("{e:#}")),
         };

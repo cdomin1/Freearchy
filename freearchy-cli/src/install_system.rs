@@ -4,11 +4,10 @@
 //! custom media): partition a disk, lay down ZFS + base system + freearchy,
 //! reboot into a working desktop.
 //!
-//! Interactive wizard via dialoguer today; the pipeline functions below are
-//! UI-agnostic so a ratatui frontend can replace the prompts later.
+//! Interactive wizard via ratatui (install_tui.rs); the pipeline functions
+//! below are UI-agnostic — the web installer uses the same `execute`.
 
 use anyhow::{bail, Context, Result};
-use dialoguer::{Confirm, Input, Password, Select};
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -27,6 +26,9 @@ pub struct InstallSpec {
     pub disk: String,
     pub hostname: String,
     pub username: String,
+    pub fullname: Option<String>,
+    pub email: Option<String>,
+    pub keymap: String,
     pub password: Option<String>,
 }
 
@@ -39,47 +41,49 @@ pub fn run(
     util::ensure_freebsd()?;
     ensure_root()?;
 
-    let disk = disk.unwrap_or_else(|| pick_disk().expect("disk selection"));
+    // No flags at all → full wizard (the live-image path).
+    if !yes && disk.is_none() && hostname.is_none() && username.is_none() {
+        return crate::install_tui::run_wizard();
+    }
 
-    let hostname = match hostname {
-        Some(h) => h,
-        None if yes => "freearchy".into(),
-        None => Input::new()
-            .with_prompt("Hostname")
-            .default("freearchy".into())
-            .interact_text()?,
-    };
-
-    let username = match username {
-        Some(u) => u,
-        None if yes => "freearchy".into(),
-        None => Input::new().with_prompt("Username").interact_text()?,
-    };
-
-    let password = if yes {
-        None // account created locked; set later with `passwd`
-    } else {
-        Some(
-            Password::new()
-                .with_prompt("User password")
-                .with_confirmation("Confirm password", "Passwords don't match")
-                .interact()?,
-        )
-    };
+    // Flag mode: defaults for anything unset; still confirm unless --yes.
+    let disk = disk.unwrap_or_else(|| {
+        let disks = disks().expect("disk detection");
+        if disks.is_empty() {
+            eprintln!("error: no candidate disks found (kern.disks empty)");
+            std::process::exit(1);
+        }
+        if disks.len() > 1 {
+            eprintln!("multiple disks — pass --disk:");
+            for (_, l) in &disks {
+                eprintln!("  {l}");
+            }
+            std::process::exit(1);
+        }
+        disks[0].0.clone()
+    });
+    let hostname = hostname.unwrap_or_else(|| "freearchy".into());
+    let username = username.unwrap_or_else(|| "freearchy".into());
 
     if !yes {
-        let ok = Confirm::new()
-            .with_prompt(format!(
-                "Install FreeBSD + freearchy onto /dev/{disk}? ALL DATA ON IT WILL BE ERASED"
-            ))
-            .default(false)
-            .interact()?;
-        if !ok {
+        print!("Install FreeBSD + freearchy onto /dev/{disk}? ALL DATA ERASED [y/N] ");
+        std::io::stdout().flush()?;
+        let mut a = String::new();
+        std::io::stdin().read_line(&mut a)?;
+        if !a.trim().eq_ignore_ascii_case("y") {
             bail!("aborted");
         }
     }
 
-    let spec = InstallSpec { disk, hostname, username, password };
+    let spec = InstallSpec {
+        disk,
+        hostname,
+        username,
+        fullname: None,
+        email: None,
+        keymap: "us".into(),
+        password: None,
+    };
     execute(&spec, &|m| println!("{m}"))
 }
 
@@ -91,8 +95,8 @@ pub fn execute(spec: &InstallSpec, log: &dyn Fn(&str)) -> Result<()> {
     let datasets = zfs_layout(&dev, log)?;
     extract_base(log)?;
     boot_loader(&dev, log)?;
-    system_files(&spec.hostname)?;
-    create_user(&spec.username, spec.password.as_deref(), log)?;
+    system_files(spec)?;
+    create_user(spec, log)?;
     install_freearchy(log)?;
     datasets.teardown()?;
     log("Install complete. Remove the media and reboot.");
@@ -107,24 +111,6 @@ fn ensure_root() -> Result<()> {
 }
 
 // --- disk selection --------------------------------------------------------
-
-fn pick_disk() -> Result<String> {
-    let disks = disks()?;
-    if disks.is_empty() {
-        bail!("no candidate disks found (kern.disks empty)");
-    }
-    if disks.len() == 1 {
-        let (name, label) = disks.into_iter().next().unwrap();
-        println!("==> only disk present: {label}");
-        return Ok(name);
-    }
-    let labels: Vec<String> = disks.iter().map(|(_, l)| l.clone()).collect();
-    let idx = Select::new()
-        .with_prompt("Target disk")
-        .items(&labels)
-        .interact()?;
-    Ok(disks[idx].0.clone())
-}
 
 /// Candidate install targets as (device name, display label),
 /// minus the disk backing / and removable pseudo-devices.
@@ -298,24 +284,36 @@ fn boot_loader(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
     Ok(())
 }
 
-fn system_files(hostname: &str) -> Result<()> {
+fn system_files(spec: &InstallSpec) -> Result<()> {
     fs::write(
         format!("{MNT}/etc/rc.conf"),
         format!(
-            "hostname=\"{hostname}\"\nzfs_enable=\"YES\"\nsshd_enable=\"YES\"\n\
-             ifconfig_DEFAULT=\"SYNCDHCP\"\nfreearchy_firstboot_enable=\"YES\"\n"
+            "hostname=\"{}\"\nzfs_enable=\"YES\"\nsshd_enable=\"YES\"\n\
+             keymap=\"{}\"\nifconfig_DEFAULT=\"SYNCDHCP\"\n\
+             freearchy_firstboot_enable=\"YES\"\n",
+            spec.hostname, spec.keymap
         ),
     )?;
+    // git identity — the wizard's email/fullname feed ~/.gitconfig
+    if let Some(email) = &spec.email {
+        let name = spec.fullname.as_deref().unwrap_or(&spec.username);
+        fs::write(
+            format!("{MNT}/home/{}/.gitconfig", spec.username),
+            format!("[user]\n\tname = {name}\n\temail = {email}\n"),
+        )?;
+    }
     Ok(())
 }
 
-fn create_user(username: &str, password: Option<&str>, log: &dyn Fn(&str)) -> Result<()> {
+fn create_user(spec: &InstallSpec, log: &dyn Fn(&str)) -> Result<()> {
+    let username = &spec.username;
+    let gecos = spec.fullname.as_deref().unwrap_or("freearchy user");
     log(&format!("Creating user {username}"));
     util::run("chroot", &[
         MNT, "pw", "useradd", "-n", username, "-m", "-s", "/bin/sh",
-        "-G", "wheel,video", "-c", "freearchy user",
+        "-G", "wheel,video", "-c", gecos,
     ])?;
-    if let Some(pass) = password {
+    if let Some(pass) = spec.password.as_deref() {
         // via stdin — never put it on a command line (visible in ps).
         run_stdin("chroot", &[MNT, "pw", "mod", "user", username, "-h", "0"], pass)?;
     } else {
