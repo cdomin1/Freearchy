@@ -45,7 +45,7 @@ fi
 if [ "$SKIP_CAVA" != "1" ]; then
     log "Building libcava (set SKIP_CAVA=1 to skip)"
     CAVA_REPO="${CAVA_REPO:-https://github.com/LukashonakV/cava.git}"
-    [ -d "$BUILD_DIR/cava" ] || git clone --depth 1 -b libcava "$CAVA_REPO" \
+    [ -d "$BUILD_DIR/cava" ] || git clone --depth 1 "$CAVA_REPO" \
         "$BUILD_DIR/cava"
     (cd "$BUILD_DIR/cava" && ./autogen.sh && ./configure --prefix=/usr/local \
         && gmake && doas gmake install) 2>&1 || \
