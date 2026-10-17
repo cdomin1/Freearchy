@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::{packages, theme, util};
 
-pub fn run(no_packages: bool, dev: bool) -> Result<()> {
+pub fn run(no_packages: bool, dev: bool, no_shell: bool) -> Result<()> {
     util::ensure_freebsd()?;
     let repo = util::repo_root()?;
 
@@ -15,6 +15,11 @@ pub fn run(no_packages: bool, dev: bool) -> Result<()> {
     system_setup()?;
     link_configs(&repo)?;
     theme::set("tokyo-night")?;
+
+    if !no_shell {
+        let script = repo.join("shell/build-shell.sh");
+        util::run("sh", &[script.to_str().unwrap()])?;
+    }
 
     println!("\nfreearchy installed. Log in via a getty and run `Hyprland`,");
     println!("or install a display manager. Run `freearchy doctor` to verify.");

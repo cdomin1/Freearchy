@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 70" width="100%" height="100%">
+  <!-- Group using 10px grid unit, padded at (10, 10) -->
+  <g fill="#1a1a1a" transform="translate(10, 10)">
+    
+    <!-- F (x: 0..40) -->
+    <path d="
+      M 0,0 H 40 V 10 H 10 V 20 H 30 V 30 H 10 V 50 H 0 Z
+    " />
+
+    <!-- R (x: 50..90) -->
+    <path d="
+      M 50,0 H 90 V 30 H 80 V 40 H 90 V 50 H 80 V 40 H 70 V 30 H 60 V 50 H 50 Z
+      M 60,10 V 20 H 80 V 10 Z
+    " />
+
+    <!-- E (x: 100..140) with 45-degree inner chamfer -->
+    <path d="
+      M 100,0 H 140 V 10 H 120 L 110,20 H 130 V 30 H 110 V 40 H 140 V 50 H 100 Z
+    " />
+
+    <!-- E (x: 150..190) with 45-degree inner chamfer -->
+    <path d="
+      M 150,0 H 190 V 10 H 170 L 160,20 H 180 V 30 H 160 V 40 H 190 V 50 H 150 Z
+    " />
+
+    <!-- A (x: 200..240) -->
+    <path d="
+      M 200,0 H 240 V 50 H 230 V 30 H 210 V 50 H 200 Z
+      M 210,10 V 20 H 230 V 10 Z
+    " />
+
+    <!-- R (x: 250..290) -->
+    <path d="
+      M 250,0 H 290 V 30 H 280 V 40 H 290 V 50 H 280 V 40 H 270 V 30 H 260 V 50 H 250 Z
+      M 260,10 V 20 H 280 V 10 Z
+    " />
+
+    <!-- C (x: 300..340) with stepped notch -->
+    <path d="
+      M 310,0 H 340 V 10 H 310 V 40 H 340 V 50 H 310 V 40 H 300 V 10 H 310 Z
+    " />
+
+    <!-- H (x: 350..390) -->
+    <path d="
+      M 350,0 H 360 V 20 H 380 V 0 H 390 V 50 H 380 V 30 H 360 V 50 H 350 Z
+    " />
+
+    <!-- Y (x: 400..440) -->
+    <path d="
+      M 400,0 H 410 V 20 H 420 V 30 H 430 V 20 H 430 V 0 H 440 V 20 H 430 V 40 H 420 V 50 H 410 V 30 H 400 Z
+    " />
+
+  </g>
+</svg>

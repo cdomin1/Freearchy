@@ -13,8 +13,9 @@
 - [ ] End-to-end `freearchy install` on clean 15.0-RELEASE → Hyprland session
 
 ## Phase 3 — shell
-- [ ] Build quickshell on FreeBSD (upstream has partial support; no crash reporter/jemalloc)
-- [ ] Build qt6-m3shapes; freearchy-shell fork with service patches (see shell/PORTING.md)
+- [x] quickshell on FreeBSD — **solved upstream**: `x11/quickshell` in ports since Jan 2026
+- [ ] Verify packaged quickshell satisfies caelestia (it tracks -git; `QS_GIT=1` fallback exists in build-shell.sh)
+- [ ] Build qt6-m3shapes + libcava; freearchy-shell fork with service patches (see shell/PORTING.md)
 - [ ] First degraded milestone: shell runs, network/sensor widgets stubbed or hidden
 
 ## Phase 4 — polish

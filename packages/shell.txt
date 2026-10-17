@@ -1,20 +1,15 @@
 # Runtime deps for Quickshell + Caelestia shell.
-# quickshell itself and qt6-m3shapes are BUILT FROM SOURCE (see shell/PORTING.md).
+# quickshell IS in ports (x11/quickshell). Caelestia tracks quickshell-git
+# upstream — if the packaged version lags, shell/build-shell.sh can build
+# it from source instead (QS_GIT=1).
 
-qt6-base
-qt6-declarative
-qt6-svg
-qt6-shadertools
-qt6-wayland
-wayland
-wayland-protocols
+quickshell                # x11/quickshell — packaged since Jan 2026
 
 # Caelestia service deps — see shell/PORTING.md for FreeBSD substitutions
-brightnessctl             # backlight (exists in ports)
+brightnessctl             # backlight
 ddcutil                   # external monitor brightness
 libqalculate              # calculator in launcher
-aubio                     # audio analysis for cava visualizer
-cava?                     # libcava may need a manual build — verify
+aubio                     # audio analysis for the cava visualizer
 swappy                    # screenshot annotation
 fish                      # caelestia scripts use fish in places
 bash                      # caelestia scripts use bash
@@ -24,10 +19,10 @@ wl-clipboard
 cliphist
 pavucontrol
 imagemagick
+upower?                   # battery — likely what caelestia reads; verify
+networkmgr?               # GhostBSD's NetworkManager-ish tool — candidate backend
+powerdxx?                 # power-profile-ish control via powerd
 
-# Fonts (verify availability; else install TTFs via installer)
+# Fonts (verify availability; else installed as TTFs by build-shell.sh)
 cascadia-code
 noto
-noto-emoji?
-material-symbols?         # probably a manual TTF install
-rubik?

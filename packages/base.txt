@@ -1,5 +1,6 @@
 # Core system packages. One per line; '#' comments and blanks ignored.
-# Verify names on target with `pkg search <name>` before trimming the list.
+# A trailing '?' marks the package optional: installed individually, warned
+# (not fatal) if unavailable.
 
 seatd                  # seat management (required by hyprland without elogind)
 turnstile              # XDG_RUNTIME_DIR + user dbus/session services
@@ -18,9 +19,8 @@ wget
 git-lite
 unzip
 p7zip
-xwayland
-xwayland-satellite?    # TODO: only needed if we ship niri module; drop here
+xwayland               # hyprland embeds its own xwayland support
 xdg-user-dirs
 ca_root_nss
-avahi-app              # mDNS (optional but commonly expected)
-cups?                  # printing — keep optional
+avahi-app?             # mDNS — optional
+cups?                  # printing — optional

@@ -14,16 +14,16 @@ services**. Strategy:
 
 | Caelestia expects | FreeBSD equivalent | Status |
 |---|---|---|
-| `quickshell-git` | build from source (partial FreeBSD support upstream; not in ports) | **build step needed** |
+| `quickshell-git` | `x11/quickshell` **in ports** (0.3.x, maintained). If caelestia needs newer git features, `build-shell.sh` can build it (`QS_GIT=1`, `-DCRASH_REPORTER=OFF -DUSE_JEMALLOC=OFF` per upstream FreeBSD notes) | pkg (fallback: build) |
 | `qt6-m3shapes` | build from source (Qt6 plugin, cmake) | **build step needed** |
-| `libcava` | `audio/cava` exists; libcava may need manual build | verify |
+| `libcava` | **not in ports** (confirmed) — build libcava from source for the visualizer, or hide the widget | **manual build** |
 | `brightnessctl` | `sysutils/brightnessctl` — exists | pkg |
 | `ddcutil` | `sysutils/ddcutil` — exists | pkg |
 | `libqalculate` | `math/libqalculate` — exists | pkg |
 | `aubio` | `audio/aubio` — exists | pkg |
 | `swappy` | `x11/swappy` — exists | pkg |
 | `fish`, `bash` | ports | pkg |
-| `NetworkManager` | **not on FreeBSD** — see below | **patch** |
+| `NetworkManager` | **not on FreeBSD** (confirmed — no port). Candidates: `net-mgmt/networkmgr` (GhostBSD's tool), or a `Process`-backed `ifconfig`/`wpa_supplicant` wrapper | **patch** |
 | `lm_sensors` | `sysctl dev.cpu.N.temperature`, `hw.acpi.thermal` | **patch** |
 | `power-profiles-daemon` | `powerd` (base) / `sysutils/powerdxx` | **patch** |
 | `glibc`, `gcc-libs` | n/a | drop |
@@ -50,9 +50,12 @@ services**. Strategy:
 
 ## Build steps for the installer (`freearchy install`)
 
-1. `pkg install` everything in `packages/shell.txt`
-2. Build quickshell: `cmake -B build -DCMAKE_BUILD_TYPE=Release -DCRASH_REPORTER=OFF -DUSE_JEMALLOC=OFF && cmake --build build && cmake --install build`
-3. Build qt6-m3shapes similarly; install into Qt6's qml import path
-4. Clone `freearchy-shell` to `~/.config/quickshell/caelestia`, build its C++ plugin (cmake)
-5. Install `caelestia-cli` (pipx or a small wrapper)
-6. Install fonts that lack ports (material-symbols, rubik) to `~/.local/share/fonts`
+Handled by `shell/build-shell.sh`:
+
+1. `pkg install` everything in `packages/shell.txt` (includes `quickshell`)
+2. Optionally rebuild quickshell from git (`QS_GIT=1`) if caelestia requires it
+3. Clone `freearchy-shell` to `~/.config/quickshell/caelestia`, build its C++ plugin
+4. Build qt6-m3shapes; install into Qt6's qml import path
+5. Build libcava (visualizer) — or skip with `SKIP_CAVA=1`
+6. Install `caelestia-cli`
+7. Install fonts that lack ports (material-symbols, rubik) to `~/.local/share/fonts` + `fc-cache`

@@ -21,30 +21,40 @@ pub fn install_all(repo: &Path, include_dev: bool) -> Result<()> {
     util::run("pkg", &["update"])?;
 
     for manifest in manifests {
-        let pkgs = read_manifest(&repo.join("packages").join(manifest))?;
-        if pkgs.is_empty() {
-            continue;
+        let (required, optional) = read_manifest(&repo.join("packages").join(manifest))?;
+
+        if !required.is_empty() {
+            println!("==> Installing {} ({} packages)", manifest, required.len());
+            let mut cmd = vec!["install", "-y"];
+            cmd.extend(required.iter().map(String::as_str));
+            util::run("pkg", &cmd).with_context(|| format!("manifest {manifest}"))?;
         }
-        println!("==> Installing {} ({} packages)", manifest, pkgs.len());
-        let args: Vec<&str> = pkgs.iter().map(String::as_str).collect();
-        let mut cmd = vec!["install", "-y"];
-        cmd.extend(args);
-        // TODO: don't fail the whole run on a single missing package —
-        // collect failures and report at the end.
-        util::run("pkg", &cmd).with_context(|| format!("manifest {manifest}"))?;
+
+        for pkg in optional {
+            if util::run("pkg", &["install", "-y", &pkg]).is_err() {
+                eprintln!("    warn: optional package {pkg} unavailable, skipping");
+            }
+        }
     }
     Ok(())
 }
 
-/// Parse a manifest: strip comments/blank lines, drop `name?` optional markers
-/// (optional packages are attempted individually and ignored on failure).
-pub fn read_manifest(path: &Path) -> Result<Vec<String>> {
+/// Parse a manifest into (required, optional) package lists. Lines are
+/// `name [# comment]`; a trailing `?` marks the package optional.
+fn read_manifest(path: &Path) -> Result<(Vec<String>, Vec<String>)> {
     let text = fs::read_to_string(path)
         .with_context(|| format!("reading {}", path.display()))?;
-    Ok(text
-        .lines()
-        .map(|l| l.split('#').next().unwrap_or("").trim())
-        .filter(|l| !l.is_empty())
-        .map(|l| l.trim_end_matches('?').to_string())
-        .collect())
+    let mut required = Vec::new();
+    let mut optional = Vec::new();
+    for line in text.lines() {
+        let entry = line.split('#').next().unwrap_or("").trim();
+        if entry.is_empty() {
+            continue;
+        }
+        match entry.strip_suffix('?') {
+            Some(name) => optional.push(name.trim().to_string()),
+            None => required.push(entry.to_string()),
+        }
+    }
+    Ok((required, optional))
 }

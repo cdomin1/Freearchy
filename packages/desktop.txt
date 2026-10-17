@@ -25,4 +25,4 @@ swayimg?                  # alt image viewer — verify
 ffmpeg
 yt-dlp
 syncthing?                # optional
-zed?                      # editors/zed — verify on 15.x
+zed-editor?               # editors/zed — in ports, binary name `zedit`

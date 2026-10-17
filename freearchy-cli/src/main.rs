@@ -29,6 +29,9 @@ enum Command {
         /// Install the optional dev tool manifest too
         #[arg(long)]
         dev: bool,
+        /// Skip building/installing the Caelestia shell
+        #[arg(long)]
+        no_shell: bool,
     },
     /// Re-apply configs and theme from the repo (after a git pull)
     Update,
@@ -69,7 +72,9 @@ enum ImageCommand {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Command::Install { no_packages, dev } => install::run(no_packages, dev),
+        Command::Install { no_packages, dev, no_shell } => {
+            install::run(no_packages, dev, no_shell)
+        }
         Command::Update => install::update(),
         Command::Theme { command } => match command {
             ThemeCommand::List => theme::list(),
