@@ -8,6 +8,7 @@ mod install_system;
 mod packages;
 mod theme;
 mod util;
+mod web_install;
 
 #[derive(Parser)]
 #[command(
@@ -55,6 +56,12 @@ enum Command {
         /// Non-interactive: accept defaults, no prompts. USE WITH CARE.
         #[arg(long)]
         yes: bool,
+        /// Serve a browser-based installer UI instead of the TUI
+        #[arg(long)]
+        web: bool,
+        /// Port for --web
+        #[arg(long, default_value = "8080")]
+        port: u16,
     },
     /// Check the system for common problems
     Doctor,
@@ -97,8 +104,12 @@ fn main() -> Result<()> {
             ThemeCommand::Set { name } => theme::set(&name),
             ThemeCommand::Next => theme::next(),
         },
-        Command::InstallSystem { disk, hostname, user, yes } => {
-            install_system::run(disk, hostname, user, yes)
+        Command::InstallSystem { disk, hostname, user, yes, web, port } => {
+            if web {
+                web_install::serve(port)
+            } else {
+                install_system::run(disk, hostname, user, yes)
+            }
         }
         Command::Doctor => doctor::run(),
         Command::Image { command } => match command {

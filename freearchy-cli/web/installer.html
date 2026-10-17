@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>freearchy installer</title>
+<style>
+  :root {
+    --bg: #1a1b26; --bg2: #24283b; --fg: #c0caf5; --dim: #565f89;
+    --accent: #7aa2f7; --danger: #f7768e; --ok: #9ece6a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.5 ui-monospace, SF Mono, Menlo, monospace;
+    display: flex; justify-content: center; padding: 40px 16px;
+  }
+  main { width: 100%; max-width: 560px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h1 .b { color: var(--accent); }
+  .sub { color: var(--dim); margin-bottom: 28px; }
+  fieldset {
+    border: 1px solid var(--bg2); border-radius: 8px;
+    padding: 16px; margin-bottom: 16px;
+  }
+  legend { color: var(--dim); padding: 0 6px; font-size: 13px; }
+  label.disk {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border: 1px solid var(--bg2);
+    border-radius: 6px; margin-bottom: 8px; cursor: pointer;
+  }
+  label.disk:has(input:checked) { border-color: var(--accent); }
+  input[type=text], input[type=password] {
+    width: 100%; padding: 10px 12px; margin-bottom: 8px;
+    background: var(--bg2); border: 1px solid transparent;
+    border-radius: 6px; color: var(--fg); font: inherit;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  button {
+    width: 100%; padding: 12px; border: 0; border-radius: 6px;
+    background: var(--accent); color: var(--bg); font: inherit;
+    font-weight: 700; cursor: pointer;
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  .warn { color: var(--danger); font-size: 13px; margin: 12px 0 0; }
+  #log {
+    display: none; background: #16161e; border: 1px solid var(--bg2);
+    border-radius: 8px; padding: 12px; max-height: 320px;
+    overflow: auto; white-space: pre-wrap; font-size: 13px;
+  }
+  .done { color: var(--ok); } .failed { color: var(--danger); }
+</style>
+</head>
+<body>
+<main>
+  <h1>free<span class="b">archy</span> installer</h1>
+  <div class="sub">FreeBSD 15.x · ZFS root · Hyprland + Caelestia</div>
+
+  <form id="form">
+    <fieldset>
+      <legend>Target disk — all data erased</legend>
+      <div id="disks">loading…</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>System</legend>
+      <input type="text" name="hostname" placeholder="hostname" value="freearchy" required>
+      <input type="text" name="username" placeholder="username" required>
+      <input type="password" name="password" placeholder="password (optional)">
+    </fieldset>
+
+    <button id="install" type="submit">Install</button>
+    <div class="warn">This completely erases the selected disk.</div>
+  </form>
+
+  <pre id="log"></pre>
+</main>
+
+<script>
+const disksDiv = document.getElementById('disks');
+const logEl = document.getElementById('log');
+const form = document.getElementById('form');
+let from = 0, installing = false;
+
+fetch('/api/disks').then(r => r.json()).then(({disks}) => {
+  if (!disks.length) {
+    disksDiv.innerHTML = '<span class="warn">No disks detected — check the VM\'s attached drives.</span>';
+    return;
+  }
+  disksDiv.innerHTML = disks.map((d, i) =>
+    `<label class="disk"><input type="radio" name="disk" value="${d.name}" ${i===0?'checked':''}> ${d.label}</label>`
+  ).join('');
+});
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  if (installing) return;
+  const fd = new FormData(form);
+  if (!confirm(`Erase ${fd.get('disk')} and install freearchy?`)) return;
+  installing = true;
+  form.style.display = 'none';
+  logEl.style.display = 'block';
+  await fetch('/api/install', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      disk: fd.get('disk'),
+      hostname: fd.get('hostname'),
+      username: fd.get('username'),
+      password: fd.get('password') || null,
+    }),
+  });
+  poll();
+});
+
+async function poll() {
+  const r = await fetch('/api/log?from=' + from);
+  const {lines, total, state} = await r.json();
+  from = total;
+  for (const l of lines) logEl.textContent += l + '\n';
+  logEl.scrollTop = logEl.scrollHeight;
+  if (state === 'done') {
+    logEl.innerHTML += '<span class="done">\nInstall complete — remove media and reboot.</span>';
+  } else if (state && state.failed) {
+    logEl.innerHTML += `<span class="failed">\nFAILED: ${state.failed}</span>`;
+  } else {
+    setTimeout(poll, 1000);
+  }
+}
+</script>
+</body>
+</html>

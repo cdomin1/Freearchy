@@ -21,6 +21,15 @@ const POOL: &str = "zroot";
 const REPO_TARBALL: &str =
     "https://github.com/USER/freearchy/archive/refs/heads/main.tar.gz";
 
+/// Fully-specified install request — produced by the TUI wizard, CLI flags,
+/// or the web installer. `execute` runs the same pipeline for all of them.
+pub struct InstallSpec {
+    pub disk: String,
+    pub hostname: String,
+    pub username: String,
+    pub password: Option<String>,
+}
+
 pub fn run(
     disk: Option<String>,
     hostname: Option<String>,
@@ -30,9 +39,7 @@ pub fn run(
     util::ensure_freebsd()?;
     ensure_root()?;
 
-    // --- gather answers ---------------------------------------------------
     let disk = disk.unwrap_or_else(|| pick_disk().expect("disk selection"));
-    let dev = format!("/dev/{disk}");
 
     let hostname = match hostname {
         Some(h) => h,
@@ -63,7 +70,7 @@ pub fn run(
     if !yes {
         let ok = Confirm::new()
             .with_prompt(format!(
-                "Install FreeBSD + freearchy onto {dev}? ALL DATA ON IT WILL BE ERASED"
+                "Install FreeBSD + freearchy onto /dev/{disk}? ALL DATA ON IT WILL BE ERASED"
             ))
             .default(false)
             .interact()?;
@@ -72,17 +79,23 @@ pub fn run(
         }
     }
 
-    // --- pipeline ---------------------------------------------------------
-    partition(&dev)?;
-    let datasets = zfs_layout(&dev)?;
-    extract_base()?;
-    boot_loader(&dev)?;
-    system_files(&hostname)?;
-    create_user(&username, password.as_deref())?;
-    install_freearchy()?;
-    datasets.teardown()?;
+    let spec = InstallSpec { disk, hostname, username, password };
+    execute(&spec, &|m| println!("{m}"))
+}
 
-    println!("\nInstall complete. Remove the media and reboot.");
+/// The install pipeline. `log` receives milestone messages — the TUI prints
+/// them, the web installer buffers them for the progress pane.
+pub fn execute(spec: &InstallSpec, log: &dyn Fn(&str)) -> Result<()> {
+    let dev = format!("/dev/{}", spec.disk);
+    partition(&dev, log)?;
+    let datasets = zfs_layout(&dev, log)?;
+    extract_base(log)?;
+    boot_loader(&dev, log)?;
+    system_files(&spec.hostname)?;
+    create_user(&spec.username, spec.password.as_deref(), log)?;
+    install_freearchy(log)?;
+    datasets.teardown()?;
+    log("Install complete. Remove the media and reboot.");
     Ok(())
 }
 
@@ -115,7 +128,7 @@ fn pick_disk() -> Result<String> {
 
 /// Candidate install targets as (device name, display label),
 /// minus the disk backing / and removable pseudo-devices.
-fn disks() -> Result<Vec<(String, String)>> {
+pub(crate) fn disks() -> Result<Vec<(String, String)>> {
     let root = root_disk();
     let names = util::capture("sysctl", &["-n", "kern.disks"]).unwrap_or_default();
     Ok(names
@@ -157,8 +170,8 @@ fn root_disk() -> Option<String> {
 
 // --- pipeline steps --------------------------------------------------------
 
-fn partition(dev: &str) -> Result<()> {
-    println!("==> Partitioning {dev}");
+fn partition(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
+    log(&format!("Partitioning {dev}"));
     let _ = util::run("gpart", &["destroy", "-F", dev]); // ok if no table
     util::run("gpart", &["create", "-s", "gpt", dev])?;
     util::run("gpart", &["add", "-a", "4k", "-t", "efi", "-s", "260m", "-l", "efiboot", dev])?;
@@ -177,8 +190,8 @@ impl PoolGuard {
     }
 }
 
-fn zfs_layout(dev: &str) -> Result<PoolGuard> {
-    println!("==> Creating zpool {POOL}");
+fn zfs_layout(dev: &str, log: &dyn Fn(&str)) -> Result<PoolGuard> {
+    log(&format!("Creating zpool {POOL}"));
     util::run("zpool", &[
         "create", "-f", "-o", &format!("altroot={MNT}"),
         "-O", "compress=lz4", "-O", "atime=off", "-O", "mountpoint=none",
@@ -207,9 +220,9 @@ fn zfs_layout(dev: &str) -> Result<PoolGuard> {
 
 /// Extract base.txz/kernel.txz — from the media's dist dir if present,
 /// else fetch matching the live system's release.
-fn extract_base() -> Result<()> {
+fn extract_base(log: &dyn Fn(&str)) -> Result<()> {
     let distdir = dist_dir()?;
-    println!("==> Extracting base system from {distdir}");
+    log(&format!("Extracting base system from {distdir}"));
     for set in ["kernel.txz", "base.txz"] {
         let path = format!("{distdir}/{set}");
         if !Path::new(&path).exists() {
@@ -244,8 +257,8 @@ fn dist_dir() -> Result<String> {
     Ok(dir.into())
 }
 
-fn boot_loader(dev: &str) -> Result<()> {
-    println!("==> Installing EFI loader");
+fn boot_loader(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
+    log("Installing EFI loader");
     let efi = format!("{MNT}/boot/efi");
     fs::create_dir_all(&efi)?;
     util::run("mount", &["-t", "msdosfs", &format!("{dev}p1"), &efi])?;
@@ -296,8 +309,8 @@ fn system_files(hostname: &str) -> Result<()> {
     Ok(())
 }
 
-fn create_user(username: &str, password: Option<&str>) -> Result<()> {
-    println!("==> Creating user {username}");
+fn create_user(username: &str, password: Option<&str>, log: &dyn Fn(&str)) -> Result<()> {
+    log(&format!("Creating user {username}"));
     util::run("chroot", &[
         MNT, "pw", "useradd", "-n", username, "-m", "-s", "/bin/sh",
         "-G", "wheel,video", "-c", "freearchy user",
@@ -306,7 +319,7 @@ fn create_user(username: &str, password: Option<&str>) -> Result<()> {
         // via stdin — never put it on a command line (visible in ps).
         run_stdin("chroot", &[MNT, "pw", "mod", "user", username, "-h", "0"], pass)?;
     } else {
-        println!("    note: account is locked — run `passwd {username}` after login");
+        log(&format!("note: account is locked — run `passwd {username}` after login"));
     }
     Ok(())
 }
@@ -331,8 +344,8 @@ fn run_stdin(cmd: &str, args: &[&str], input: &str) -> Result<()> {
 }
 
 /// Deliver the freearchy repo + firstboot hook into the installed system.
-fn install_freearchy() -> Result<()> {
-    println!("==> Installing freearchy payload");
+fn install_freearchy(log: &dyn Fn(&str)) -> Result<()> {
+    log("Installing freearchy payload");
     let dst = format!("{MNT}/usr/local/freearchy");
     let local = util::repo_root().unwrap_or_default();
 
@@ -359,7 +372,7 @@ fn install_freearchy() -> Result<()> {
         fs::copy(&rc_src, format!("{rc_dst}/freearchy-firstboot"))?;
         util::run("chmod", &["+x", &format!("{rc_dst}/freearchy-firstboot")])?;
     } else {
-        println!("    warn: no freearchy-firstboot in payload — skipping autostart");
+        log("warn: no freearchy-firstboot in payload — skipping autostart");
     }
     Ok(())
 }

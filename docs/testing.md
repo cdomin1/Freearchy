@@ -43,6 +43,22 @@ freearchy install          # add --no-packages / --no-shell to bisect failures
 freearchy doctor
 ```
 
+## 3b. Or: skip bsdinstall entirely (GUI installer)
+
+Boot the ISO → pick **"Live CD"** → you get a root shell. Then:
+
+```sh
+pkg bootstrap -f && pkg install -y git-lite rust
+git clone <repo> /root/freearchy
+cargo build --release --manifest-path /root/freearchy/freearchy-cli/Cargo.toml
+/root/freearchy/target/release/freearchy install-system --web
+```
+
+Then open `http://<vm-ip>:8080` **in a browser on your Mac** — the GUI renders
+there while the install runs in the VM. No display stack needed in the guest.
+(`--yes` + flags runs the same pipeline with no UI at all; plain
+`install-system` uses terminal prompts.)
+
 ## 4. Getting a graphical session
 
 This is the risky step in any VM:
