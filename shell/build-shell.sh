@@ -19,7 +19,8 @@ log() { printf '\033[1m==> %s\033[0m\n' "$*"; }
 # --- build deps -------------------------------------------------------------
 log "Installing build tools"
 pkg install -y cmake ninja pkgconf qt6-base qt6-declarative qt6-svg \
-    qt6-shadertools qt6-wayland wayland wayland-protocols git-lite
+    qt6-shadertools qt6-wayland wayland wayland-protocols git-lite \
+    autoconf automake libtool gmake
 
 mkdir -p "$BUILD_DIR"
 
@@ -37,6 +38,18 @@ if [ "$QS_GIT" = "1" ]; then
 else
     log "quickshell via pkg (set QS_GIT=1 to build from git)"
     pkg install -y quickshell
+fi
+
+# --- libcava -------------------------------------------------------------------
+# Must precede caelestia — its QML plugin pkg-configs for cava.
+if [ "$SKIP_CAVA" != "1" ]; then
+    log "Building libcava (set SKIP_CAVA=1 to skip)"
+    CAVA_REPO="${CAVA_REPO:-https://github.com/LukashonakV/cava.git}"
+    [ -d "$BUILD_DIR/cava" ] || git clone --depth 1 -b libcava "$CAVA_REPO" \
+        "$BUILD_DIR/cava"
+    (cd "$BUILD_DIR/cava" && ./autogen.sh && ./configure --prefix=/usr/local \
+        && gmake && doas gmake install) 2>&1 || \
+        echo "    warn: libcava build failed — visualizer disabled"
 fi
 
 # --- caelestia shell ----------------------------------------------------------
@@ -74,17 +87,6 @@ if [ "${SKIP_M3SHAPES:-0}" != "1" ]; then
         -G Ninja -DCMAKE_BUILD_TYPE=Release
     cmake --build "$BUILD_DIR/qt6-m3shapes/build"
     cmake --install "$BUILD_DIR/qt6-m3shapes/build"
-fi
-
-# --- libcava -------------------------------------------------------------------
-if [ "$SKIP_CAVA" != "1" ]; then
-    log "Building libcava (set SKIP_CAVA=1 to skip)"
-    CAVA_REPO="${CAVA_REPO:-https://github.com/LukashonakV/cava.git}"
-    [ -d "$BUILD_DIR/cava" ] || git clone --depth 1 -b libcava "$CAVA_REPO" \
-        "$BUILD_DIR/cava"
-    # libcava is a library target in this fork; autotools build.
-    (cd "$BUILD_DIR/cava" && ./autogen.sh && ./configure --prefix=/usr/local \
-        && make && make install)
 fi
 
 # --- fonts ---------------------------------------------------------------------
