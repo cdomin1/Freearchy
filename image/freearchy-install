@@ -1,0 +1,64 @@
+#!/bin/sh
+# Freearchy live installer — replaces bsdinstall's startbsdinstall on our
+# media. Invoked once per console by /usr/libexec/bsdinstall/runconsoles
+# (arg $1 is the console name, "primary" when multicons is disabled).
+
+export HOME=/root
+
+# Same TERM dance as startbsdinstall: xterm on vt consoles, ask on serial.
+kbdcontrol -d >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+    TERM=xterm
+    # Don't send ESC on left/right command keys.
+    kbdcontrol -f 62 '' >/dev/null 2>&1
+    kbdcontrol -f 63 '' >/dev/null 2>&1
+    if [ -z "$EXTERNAL_VTY_STARTED" ]; then
+        /usr/libexec/getty autologin ttyv3 &
+        EXTERNAL_VTY_STARTED=1
+    fi
+else
+    echo
+    echo "Welcome to Freearchy!"
+    echo
+    echo "Please choose the appropriate terminal type for your system."
+    echo "Common console types are:"
+    echo "   ansi     Standard ANSI terminal"
+    echo "   vt100    VT100 or compatible terminal"
+    echo "   xterm    xterm terminal emulator (or compatible)"
+    echo
+    echo -n "Console type [vt100]: "
+    read TERM
+    TERM=${TERM:-vt100}
+fi
+export TERM
+
+resizewin -z 2>/dev/null
+
+# Network once per boot: DHCP on every plausible NIC. The dist sets and the
+# freearchy payload are fetched over the network during install.
+if [ ! -f /tmp/.freearchy-net ]; then
+    touch /tmp/.freearchy-net
+    for i in $(ifconfig -l); do
+        case "$i" in lo*|ipfw*|pflog*|pfsync*|wlan*) continue ;; esac
+        ifconfig "$i" up 2>/dev/null
+        dhclient -b "$i" >/dev/null 2>&1
+    done
+    for _ in 1 2 3 4 5 6 7 8; do
+        netstat -rn 2>/dev/null | grep -q '^default' && break
+        sleep 1
+    done
+fi
+
+if [ ! -x /usr/local/bin/freearchy ]; then
+    echo "freearchy binary not found on this media; starting stock bsdinstall."
+    sleep 2
+    exec /usr/libexec/bsdinstall/startbsdinstall "$1"
+fi
+
+/usr/local/bin/freearchy install-system
+rc=$?
+
+echo
+echo "freearchy install-system exited (status $rc)."
+echo "Rerun with 'freearchy install-system'; 'exit' returns to runconsoles."
+/bin/sh

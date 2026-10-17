@@ -1,0 +1,47 @@
+name: iso
+
+# Builds the amd64 freearchy binary on real FreeBSD and remasters the
+# official 15.1 memstick image into a bootable Freearchy installer.
+# Trigger manually (pre-alpha) or by pushing a v* tag (attaches to release).
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  iso:
+    # vmactions needs an Intel macOS runner for amd64 FreeBSD.
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build freearchy + remaster image inside FreeBSD VM
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "15.1"
+          mem: 6144
+          usesh: true
+          copyback: true
+          run: |
+            set -ex
+            pkg install -y rust git-lite
+            cargo build --release --manifest-path "$GITHUB_WORKSPACE/Cargo.toml" -p freearchy
+            strip "$GITHUB_WORKSPACE/target/release/freearchy"
+            cd "$GITHUB_WORKSPACE"
+            FREEARCHY_BIN="$PWD/target/release/freearchy" sh image/build-image.sh 15.1
+            xz -T0 FreeBSD-15.1-RELEASE-amd64-memstick.img
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: freearchy-15.1-amd64-memstick
+          path: "**/FreeBSD-15.1-RELEASE-amd64-memstick.img.xz"
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "**/FreeBSD-15.1-RELEASE-amd64-memstick.img.xz"

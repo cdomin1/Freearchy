@@ -116,11 +116,20 @@ fn ensure_root() -> Result<()> {
 /// minus the disk backing / and removable pseudo-devices.
 pub(crate) fn disks() -> Result<Vec<(String, String)>> {
     let root = root_disk();
+    // Booted from memstick/ISO: root is an md(4) vnode backed by the media
+    // device — exclude it so the stick itself is never offered as a target.
+    let media = root
+        .as_deref()
+        .filter(|d| d.starts_with("md"))
+        .and_then(md_backing_disk);
     let names = util::capture("sysctl", &["-n", "kern.disks"]).unwrap_or_default();
     Ok(names
         .split_whitespace()
         .filter(|d| {
-            !d.starts_with("cd") && !d.starts_with("md") && Some(*d) != root.as_deref()
+            !d.starts_with("cd")
+                && !d.starts_with("md")
+                && Some(*d) != root.as_deref()
+                && Some(*d) != media.as_deref()
         })
         .map(|d| (d.to_string(), format!("{d} {}", disk_size(d))))
         .collect())
@@ -139,7 +148,19 @@ fn disk_size(disk: &str) -> String {
 /// /dev/nda0p3 → nda0 ; /dev/da0s1a → da0 ; /dev/mmcsd0p2 → mmcsd0
 fn root_disk() -> Option<String> {
     let src = util::capture("sh", &["-c", "mount | awk '$3==\"/\"{print $1}'"])?;
-    let name = src.trim().trim_start_matches("/dev/");
+    Some(base_disk_name(src.trim().trim_start_matches("/dev/")))
+}
+
+/// Disk backing an md(4) vnode device — e.g. md0 → /dev/da0s2 → "da0".
+fn md_backing_disk(md: &str) -> Option<String> {
+    // `mdconfig -l -u 0` → "md0  vnode  1.4G  /dev/da0s2  -"
+    let out = util::capture("mdconfig", &["-l", "-u", md.trim_start_matches("md")])?;
+    let path = out.split_whitespace().nth(3)?;
+    path.strip_prefix("/dev/").map(base_disk_name)
+}
+
+/// nda0p3 → nda0 ; da0s1a → da0 ; mmcsd0p2 → mmcsd0
+fn base_disk_name(name: &str) -> String {
     let bytes = name.as_bytes();
     for i in 0..bytes.len() {
         // partition suffix starts at 'p' or 's' followed by a digit,
@@ -148,10 +169,10 @@ fn root_disk() -> Option<String> {
             && bytes.get(i + 1).is_some_and(u8::is_ascii_digit)
             && bytes[..i].iter().any(u8::is_ascii_digit);
         if is_sep {
-            return Some(name[..i].to_string());
+            return name[..i].to_string();
         }
     }
-    Some(name.to_string())
+    name.to_string()
 }
 
 // --- pipeline steps --------------------------------------------------------
@@ -221,7 +242,12 @@ fn extract_base(log: &dyn Fn(&str)) -> Result<()> {
 
 fn dist_dir() -> Result<String> {
     const MEDIA_DIST: &str = "/usr/freebsd-dist";
-    if Path::new(MEDIA_DIST).is_dir() {
+    // 15.x media may carry only a MANIFEST (pkgbase .pkgs live elsewhere) —
+    // require the actual sets before treating the dir as usable.
+    let has_sets = ["kernel.txz", "base.txz"]
+        .iter()
+        .all(|s| Path::new(&format!("{MEDIA_DIST}/{s}")).exists());
+    if has_sets {
         return Ok(MEDIA_DIST.into());
     }
     // Live CD / custom media: fetch the dists for the running release.

@@ -1,17 +1,23 @@
 #!/bin/sh
-# Build a bootable FreeBSD installer image with freearchy baked in.
+# Build a bootable Freearchy installer image.
 #
-# Approach: fetch the official memstick .img, attach it via md(4), inject a
-# bsdinstall `installerconfig` (auto-install: ZFS root, freearchy firstboot
-# script) plus the freearchy rc.d script, detach, done.
+# Fetches the official FreeBSD memstick .img, attaches it via md(4), then
+# injects:
+#   - /usr/local/bin/freearchy          prebuilt CLI (if FREEARCHY_BIN set)
+#   - /usr/local/bin/freearchy-install  console launcher (replaces bsdinstall)
+#   - patched /etc/rc.local             runs our launcher via runconsoles
 #
-# MUST be run on FreeBSD. Tested target: amd64.
+# Boot flow: rc.local → runconsoles → freearchy-install → freearchy
+# install-system (the ratatui wizard). If the binary is absent the launcher
+# falls back to stock bsdinstall.
+#
+# MUST be run on FreeBSD. Default target: amd64 (override ARCH=aarch64).
 set -eu
 
 RELEASE="${1:-15.1}"
-ARCH="${ARCH:-aarch64}"      # Apple Silicon dev host default; override for amd64
+ARCH="${ARCH:-amd64}"
+FREEARCHY_BIN="${FREEARCHY_BIN:-}"
 
-# FreeBSD names images differently per arch.
 case "$ARCH" in
     amd64)   IMG="FreeBSD-${RELEASE}-RELEASE-amd64-memstick.img" ;;
     aarch64) IMG="FreeBSD-${RELEASE}-RELEASE-arm64-aarch64-memstick.img" ;;
@@ -36,20 +42,32 @@ echo "==> Attaching image"
 MD=$(mdconfig -a -t vnode -f "$IMG")
 mkdir -p "$WORK/mnt"
 
-# TODO: verify partition index on the 15.x memstick layout (root is
-# typically md0s2a; EFI images may differ). `gpart show -p /dev/$MD` first.
-mount "/dev/${MD}s2a" "$WORK/mnt"
+# 15.x memstick: MBR → s1 efi, s2 freebsd, s2a ufs root. Mounts rw.
+mount -o rw "/dev/${MD}s2a" "$WORK/mnt"
 
-echo "==> Injecting installerconfig + firstboot script"
-cp "$REPO/image/installerconfig" "$WORK/mnt/etc/installerconfig"
-mkdir -p "$WORK/mnt/usr/local/etc/rc.d"
-cp "$REPO/image/freearchy-firstboot" "$WORK/mnt/usr/local/etc/rc.d/freearchy-firstboot"
-chmod +x "$WORK/mnt/usr/local/etc/rc.d/freearchy-firstboot"
+echo "==> Injecting freearchy launcher"
+mkdir -p "$WORK/mnt/usr/local/bin"
+cp "$REPO/image/freearchy-install" "$WORK/mnt/usr/local/bin/freearchy-install"
+chmod 755 "$WORK/mnt/usr/local/bin/freearchy-install"
+
+if [ -n "$FREEARCHY_BIN" ] && [ -f "$FREEARCHY_BIN" ]; then
+    echo "==> Embedding freearchy binary ($FREEARCHY_BIN)"
+    cp "$FREEARCHY_BIN" "$WORK/mnt/usr/local/bin/freearchy"
+    chmod 755 "$WORK/mnt/usr/local/bin/freearchy"
+else
+    echo "!! FREEARCHY_BIN unset — image will fall back to stock bsdinstall"
+fi
+
+echo "==> Pointing rc.local at the freearchy installer"
+sed -i '' 's|/usr/libexec/bsdinstall/startbsdinstall|/usr/local/bin/freearchy-install|g' \
+    "$WORK/mnt/etc/rc.local"
+grep -q freearchy-install "$WORK/mnt/etc/rc.local" \
+    || { echo "!! rc.local patch did not apply" >&2; exit 1; }
 
 sync
 umount "$WORK/mnt"
 mdconfig -d -u "$MD"
 MD=""
 
-echo "==> Done: $IMG — write to USB with:"
-echo "    dd if=$IMG of=/dev/daN bs=1m conv=sync"
+echo "==> Done: $IMG"
+echo "    write to USB:  dd if=$IMG of=/dev/daN bs=1m conv=sync"

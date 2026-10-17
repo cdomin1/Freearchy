@@ -14,6 +14,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use super::install_system::{disks, execute, InstallSpec};
+use super::util;
 
 const GREEN: Color = Color::Indexed(120);
 const BLUE: Color = Color::Indexed(111);
@@ -156,7 +157,14 @@ fn wizard_loop(term: &mut DefaultTerminal) -> Result<()> {
                 Screen::Keyboard => match k.code {
                     KeyCode::Up | KeyCode::Char('k') => sel(&mut w.keymap, KEYMAPS.len(), -1),
                     KeyCode::Down | KeyCode::Char('j') => sel(&mut w.keymap, KEYMAPS.len(), 1),
-                    KeyCode::Enter => w.screen = Screen::Username,
+                    KeyCode::Enter => {
+                        // Apply immediately so typing below matches the choice.
+                        let _ = util::run(
+                            "kbdcontrol",
+                            &["-l", KEYMAPS[w.keymap.selected().unwrap_or(0)].1],
+                        );
+                        w.screen = Screen::Username;
+                    }
                     _ => {}
                 },
                 s if input_screen(s) => match k.code {
