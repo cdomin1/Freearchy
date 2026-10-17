@@ -1,3 +1,3 @@
 [workspace]
-members = ["freearchy-cli"]
+members = ["freearchy-cli", "freearchy-bt"]
 resolver = "2"

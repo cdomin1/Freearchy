@@ -26,6 +26,9 @@
 - [ ] Wallpapers; default keybind sheet (`freearchy help`?)
 - [ ] ISO build verified end-to-end in CI (QEMU)
 
-## Phase 5 — upstream-friendly
+## Phase 5 — upstream-friendly + bluetooth
+- [ ] freearchy-bt: BlueZ-compatible D-Bus daemon over FreeBSD HCI sockets
+      (org.bluez API subset for quickshell/panels; scaffolded, HCI plumbing TODO)
+- [ ] Test with USB BT dongle passthrough; A2DP audio deferred to virtual_oss
 - [ ] Push generic FreeBSD fixes to quickshell/caelestia where accepted
 - [ ] Track Omarchy releases for app-selection/config inspiration

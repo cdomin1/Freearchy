@@ -1,0 +1,12 @@
+[package]
+name = "freearchy-bt"
+version = "0.1.0"
+edition = "2021"
+description = "BlueZ-compatible D-Bus daemon for FreeBSD (org.bluez over native HCI sockets)"
+license = "MIT"
+
+[dependencies]
+anyhow = "1"
+zbus = "5"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
+libc = "0.2"
