@@ -104,8 +104,8 @@ pub fn execute(spec: &InstallSpec, log: &dyn Fn(&str)) -> Result<()> {
 }
 
 fn ensure_root() -> Result<()> {
-    match util::capture("id", &["-u"]).as_deref() {
-        Some("0") => Ok(()),
+    match util::capture("id", &["-u"]).map(|s| s.trim().to_string()) {
+        Some(u) if u == "0" => Ok(()),
         _ => bail!("install-system must run as root"),
     }
 }
