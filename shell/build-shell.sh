@@ -48,6 +48,7 @@ if [ "$SKIP_CAVA" != "1" ]; then
     [ -d "$BUILD_DIR/cava" ] || git clone --depth 1 "$CAVA_REPO" \
         "$BUILD_DIR/cava"
     (cd "$BUILD_DIR/cava" && ./autogen.sh && ./configure --prefix=/usr/local \
+        && sed -i '' 's/-std=c99/-std=gnu99/' Makefile \
         && gmake && doas gmake install) 2>&1 || \
         echo "    warn: libcava build failed — visualizer disabled"
 fi
