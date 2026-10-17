@@ -103,7 +103,7 @@ if [ -f "$QS_DIR/caelestia/CMakeLists.txt" ]; then
     VER=$(git -C "$QS_DIR/caelestia" describe --tags 2>/dev/null || echo "0.0.0")
     cmake -S "$QS_DIR/caelestia" -B "$QS_DIR/caelestia/build" \
         -G Ninja -DCMAKE_BUILD_TYPE=Release -DVERSION="$VER" \
-        -DCMAKE_CXX_FLAGS="-D_LIBCPP_ENABLE_EXPERIMENTAL" \
+        -DCMAKE_CXX_FLAGS="-D_LIBCPP_ENABLE_EXPERIMENTAL -I$SCRIPT_DIR/compat/include" \
         -DCMAKE_SHARED_LINKER_FLAGS="-lc++experimental" \
         -DCMAKE_EXE_LINKER_FLAGS="-lc++experimental"
     cmake --build "$QS_DIR/caelestia/build"
