@@ -17,6 +17,7 @@ use crate::install_system::{self, InstallSpec};
 use crate::util;
 
 const PAGE: &str = include_str!("../web/installer.html");
+const LOGO: &[u8] = include_bytes!("../assets/logo.png");
 
 struct Shared {
     lines: Mutex<Vec<String>>,
@@ -77,6 +78,7 @@ fn handle(request: tiny_http::Request, shared: &Arc<Shared>) -> Result<()> {
 
     match (request.method(), path) {
         (Method::Get, "/") => respond(request, PAGE, "text/html; charset=utf-8"),
+        (Method::Get, "/logo.png") => respond_bytes(request, LOGO, "image/png"),
         (Method::Get, "/api/disks") => api_disks(request),
         (Method::Post, "/api/install") => api_install(request, shared),
         (Method::Get, "/api/log") => api_log(request, shared, &url),
@@ -91,6 +93,13 @@ fn respond(request: tiny_http::Request, body: &str, ctype: &str) -> Result<()> {
     let header = Header::from_bytes("Content-Type", ctype).unwrap();
     request
         .respond(Response::from_string(body).with_header(header))
+        .context("respond")
+}
+
+fn respond_bytes(request: tiny_http::Request, body: &'static [u8], ctype: &str) -> Result<()> {
+    let header = Header::from_bytes("Content-Type", ctype).unwrap();
+    request
+        .respond(Response::from_data(body).with_header(header))
         .context("respond")
 }
 

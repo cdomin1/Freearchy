@@ -18,6 +18,10 @@
   main { width: 100%; max-width: 560px; }
   h1 { font-size: 22px; margin: 0 0 4px; }
   h1 .b { color: var(--accent); }
+  .logo {
+    display: block; width: 300px; margin-bottom: 20px;
+    image-rendering: pixelated;
+  }
   .sub { color: var(--dim); margin-bottom: 28px; }
   fieldset {
     border: 1px solid var(--bg2); border-radius: 8px;
@@ -53,7 +57,7 @@
 </head>
 <body>
 <main>
-  <h1>free<span class="b">archy</span> installer</h1>
+  <img class="logo" src="/logo.png" alt="freearchy">
   <div class="sub">FreeBSD 15.x · ZFS root · Hyprland + Caelestia</div>
 
   <form id="form">

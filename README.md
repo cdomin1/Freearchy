@@ -1,4 +1,4 @@
-# freearchy
+![freearchy](branding/logo.png)
 
 An Omarchy-inspired, opinionated desktop for **FreeBSD**.
 
