@@ -16,9 +16,15 @@ FONTS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
 
 log() { printf '\033[1m==> %s\033[0m\n' "$*"; }
 
+# Runs under `freearchy install` (root) or standalone (needs doas for pkg/make install)
+SUDO=""
+if [ "$(id -u)" != "0" ] && command -v doas >/dev/null 2>&1; then
+    SUDO=doas
+fi
+
 # --- build deps -------------------------------------------------------------
 log "Installing build tools"
-pkg install -y cmake ninja pkgconf qt6-base qt6-declarative qt6-svg \
+$SUDO pkg install -y cmake ninja pkgconf qt6-base qt6-declarative qt6-svg \
     qt6-shadertools qt6-wayland wayland wayland-protocols git-lite \
     autoconf automake libtool gmake
 
@@ -34,10 +40,10 @@ if [ "$QS_GIT" = "1" ]; then
         -G Ninja -DCMAKE_BUILD_TYPE=Release \
         -DCRASH_REPORTER=OFF -DUSE_JEMALLOC=OFF   # required on FreeBSD
     cmake --build "$BUILD_DIR/quickshell/build"
-    cmake --install "$BUILD_DIR/quickshell/build"
+    $SUDO cmake --install "$BUILD_DIR/quickshell/build"
 else
     log "quickshell via pkg (set QS_GIT=1 to build from git)"
-    pkg install -y quickshell
+    $SUDO pkg install -y quickshell
 fi
 
 # --- libcava -------------------------------------------------------------------
@@ -55,7 +61,7 @@ if [ "$SKIP_CAVA" != "1" ]; then
             -e 's/-D_POSIX_SOURCE//g' \
             -e 's/-D_XOPEN_SOURCE_EXTENDED//g' Makefile \
         && sed -i '' 's/^#inlcude/#include/' input/oss.c \
-        && gmake && doas gmake install) 2>&1 || \
+        && gmake && $SUDO gmake install) 2>&1 || \
         echo "    warn: libcava build failed — visualizer disabled"
 fi
 
@@ -93,7 +99,7 @@ if [ "${SKIP_M3SHAPES:-0}" != "1" ]; then
     cmake -S "$BUILD_DIR/qt6-m3shapes" -B "$BUILD_DIR/qt6-m3shapes/build" \
         -G Ninja -DCMAKE_BUILD_TYPE=Release
     cmake --build "$BUILD_DIR/qt6-m3shapes/build"
-    cmake --install "$BUILD_DIR/qt6-m3shapes/build"
+    $SUDO cmake --install "$BUILD_DIR/qt6-m3shapes/build"
 fi
 
 # --- fonts ---------------------------------------------------------------------
