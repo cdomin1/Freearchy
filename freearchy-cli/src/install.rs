@@ -40,8 +40,19 @@ fn system_setup() -> Result<()> {
     for (service, _) in [("seatd", "on"), ("dbus", "on")] {
         util::run("sysrc", &[&format!("{service}_enable=YES")])?;
     }
-    util::run("service", &["seatd", "start"])?;
-    util::run("service", &["dbus", "start"])?;
+    // `service X start` fails if the daemon is already running — check status.
+    for svc in ["seatd", "dbus"] {
+        let running = std::process::Command::new("service")
+            .args([svc, "status"])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if !running {
+            util::run("service", &[svc, "start"])?;
+        }
+    }
 
     // GPU kernel modules. We can't reliably detect the GPU here; doctor reports
     // what's loaded and docs explain the choice. Intel is the common case.
