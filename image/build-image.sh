@@ -9,8 +9,14 @@
 set -eu
 
 RELEASE="${1:-15.0}"
-ARCH="${ARCH:-amd64}"
-IMG="FreeBSD-${RELEASE}-RELEASE-${ARCH}-memstick.img"
+ARCH="${ARCH:-aarch64}"      # Apple Silicon dev host default; override for amd64
+
+# FreeBSD names images differently per arch.
+case "$ARCH" in
+    amd64)   IMG="FreeBSD-${RELEASE}-RELEASE-amd64-memstick.img" ;;
+    aarch64) IMG="FreeBSD-${RELEASE}-RELEASE-arm64-aarch64-memstick.img" ;;
+    *)       echo "unsupported ARCH: $ARCH" >&2; exit 1 ;;
+esac
 BASE_URL="https://download.freebsd.org/releases/ISO-IMAGES/${RELEASE}"
 WORK="$(mktemp -d /tmp/freearchy-image.XXXXXX)"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"

@@ -3,8 +3,9 @@
 # the script body at the bottom runs chrooted into the new system.
 
 PARTITIONS="ZFS"
+# lib32.txz is amd64-only; harmless if absent on aarch64 media
 DISTRIBUTIONS="kernel.txz base.txz lib32.txz"
-BSDINSTALL_DISTSITE="https://download.freebsd.org/releases/amd64/15.0-RELEASE"
+# No BSDINSTALL_DISTSITE: dists come from the memstick itself
 
 export nonInteractive="YES"
 
