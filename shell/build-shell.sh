@@ -47,9 +47,9 @@ if [ "$SKIP_CAVA" != "1" ]; then
     CAVA_REPO="${CAVA_REPO:-https://github.com/LukashonakV/cava.git}"
     [ -d "$BUILD_DIR/cava" ] || git clone --depth 1 "$CAVA_REPO" \
         "$BUILD_DIR/cava"
+    # strict-ANSI/POSIX feature macros hide BSD symbols (ENOTSUP,
+    # CLOCK_MONOTONIC) that the pipewire/sndio inputs need on FreeBSD
     (cd "$BUILD_DIR/cava" && ./autogen.sh && ./configure --prefix=/usr/local \
-        # strict-ANSI/POSIX feature macros hide BSD symbols (ENOTSUP,
-        # CLOCK_MONOTONIC) that the pipewire/sndio inputs need on FreeBSD
         && sed -i '' -e 's/-std=c99/-std=gnu99/' \
             -e 's/-D_POSIX_C_SOURCE=200809L//g' \
             -e 's/-D_POSIX_SOURCE//g' \
