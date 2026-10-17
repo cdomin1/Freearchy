@@ -115,6 +115,16 @@ fn ensure_root() -> Result<()> {
 /// Candidate install targets as (device name, display label),
 /// minus the disk backing / and removable pseudo-devices.
 pub(crate) fn disks() -> Result<Vec<(String, String)>> {
+    // Test hook: FREEARCHY_DISKS="md1:Fake Disk;md2:Other" overrides discovery.
+    if let Ok(fake) = std::env::var("FREEARCHY_DISKS") {
+        return Ok(fake
+            .split(';')
+            .filter_map(|e| {
+                let (n, l) = e.split_once(':').unwrap_or((e, e));
+                (!n.is_empty()).then(|| (n.to_string(), l.to_string()))
+            })
+            .collect());
+    }
     let root = root_disk();
     // Booted from memstick/ISO: root is an md(4) vnode backed by the media
     // device — exclude it so the stick itself is never offered as a target.
