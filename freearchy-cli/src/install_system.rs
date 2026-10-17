@@ -16,7 +16,12 @@ use std::process::{Command, Stdio};
 use crate::util;
 
 const MNT: &str = "/mnt";
-const POOL: &str = "zroot";
+
+/// zroot is the live-ISO default; FREEARCHY_POOL overrides it for tests and
+//  hosts that already import a pool named zroot.
+fn pool() -> String {
+    std::env::var("FREEARCHY_POOL").unwrap_or_else(|_| "zroot".into())
+}
 const REPO_TARBALL: &str =
     "https://github.com/cdomin1/Freearchy/archive/refs/heads/main.tar.gz";
 
@@ -205,37 +210,61 @@ struct PoolGuard;
 impl PoolGuard {
     fn teardown(self) -> Result<()> {
         let _ = util::run("umount", &[&format!("{MNT}/boot/efi")]);
-        util::run("zpool", &["export", POOL])
+        util::run("zpool", &["export", &pool()])
     }
 }
 
+fn pool_exists(p: &str) -> bool {
+    util::capture("zpool", &["list", "-H", "-o", "name"])
+        .map(|s| s.lines().any(|l| l.trim() == p))
+        .unwrap_or(false)
+}
+
+/// Is `p`'s vdev the `{dev}p2` we just partitioned? True only for a pool a
+/// previous failed run created on this same disk this boot.
+fn pool_on_dev(p: &str, dev: &str) -> bool {
+    let want = format!("/dev/{dev}p2");
+    util::capture("zpool", &["status", "-P", p])
+        .map(|s| s.split_whitespace().any(|t| t == want))
+        .unwrap_or(false)
+}
+
 fn zfs_layout(dev: &str, log: &dyn Fn(&str)) -> Result<PoolGuard> {
-    log(&format!("Creating zpool {POOL}"));
-    // Tolerate leftovers from a previous failed run in this boot.
-    let _ = util::run("zpool", &["destroy", "-f", POOL]);
+    let p = pool();
+    log(&format!("Creating zpool {p}"));
+    if pool_exists(&p) {
+        // Retry on the same disk → wipe and start over; a zroot living on
+        // ANOTHER disk is not ours to touch.
+        if pool_on_dev(&p, dev) {
+            let _ = util::run("zpool", &["destroy", "-f", &p]);
+        } else {
+            bail!("pool '{p}' is already imported on another disk — export it first or set FREEARCHY_POOL");
+        }
+    }
     util::run("zpool", &[
         "create", "-f", "-o", &format!("altroot={MNT}"),
         "-O", "compress=lz4", "-O", "atime=off", "-O", "mountpoint=none",
-        POOL, &format!("{dev}p2"),
+        &p, &format!("{dev}p2"),
     ])?;
 
     // Standard FreeBSD-on-ZFS dataset layout (bsdinstall's).
     for args in [
-        vec!["create", "-o", "mountpoint=none", "zroot/ROOT"],
-        vec!["create", "-o", "mountpoint=/", "zroot/ROOT/default"],
-        vec!["create", "-o", "mountpoint=/tmp", "-o", "exec=on", "-o", "setuid=off", "zroot/tmp"],
-        vec!["create", "-o", "mountpoint=/usr", "-o", "canmount=off", "zroot/usr"],
-        vec!["create", "zroot/usr/home"],
-        vec!["create", "-o", "mountpoint=/var", "-o", "canmount=off", "zroot/var"],
-        vec!["create", "-o", "exec=off", "-o", "setuid=off", "zroot/var/audit"],
-        vec!["create", "-o", "exec=off", "-o", "setuid=off", "zroot/var/crash"],
-        vec!["create", "-o", "exec=off", "-o", "setuid=off", "zroot/var/log"],
-        vec!["create", "-o", "atime=on", "zroot/var/mail"],
-        vec!["create", "-o", "exec=on", "-o", "setuid=off", "zroot/var/tmp"],
+        format!("create -o mountpoint=none {p}/ROOT"),
+        format!("create -o mountpoint=/ {p}/ROOT/default"),
+        format!("create -o mountpoint=/tmp -o exec=on -o setuid=off {p}/tmp"),
+        format!("create -o mountpoint=/usr -o canmount=off {p}/usr"),
+        format!("create {p}/usr/home"),
+        format!("create -o mountpoint=/var -o canmount=off {p}/var"),
+        format!("create -o exec=off -o setuid=off {p}/var/audit"),
+        format!("create -o exec=off -o setuid=off {p}/var/crash"),
+        format!("create -o exec=off -o setuid=off {p}/var/log"),
+        format!("create -o atime=on {p}/var/mail"),
+        format!("create -o exec=on -o setuid=off {p}/var/tmp"),
     ] {
-        util::run("zfs", &args)?;
+        let argv: Vec<&str> = args.split_whitespace().collect();
+        util::run("zfs", &argv)?;
     }
-    util::run("zpool", &["set", "bootfs=zroot/ROOT/default", POOL])?;
+    util::run("zpool", &["set", &format!("bootfs={p}/ROOT/default"), &p])?;
     Ok(PoolGuard)
 }
 
@@ -312,8 +341,11 @@ fn boot_loader(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
 
     fs::write(
         format!("{MNT}/boot/loader.conf"),
-        "zfs_load=\"YES\"\nvfs.root.mountfrom=\"zfs:zroot/ROOT/default\"\n\
-         kern.geom.label.disk_ident.enable=\"0\"\nkern.geom.label.gptid.enable=\"0\"\n",
+        format!(
+            "zfs_load=\"YES\"\nvfs.root.mountfrom=\"zfs:{}/ROOT/default\"\n\
+             kern.geom.label.disk_ident.enable=\"0\"\nkern.geom.label.gptid.enable=\"0\"\n",
+            pool()
+        ),
     )?;
 
     // fstab: ESP for future loader updates.
