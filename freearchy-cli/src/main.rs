@@ -63,8 +63,8 @@ enum ThemeCommand {
 enum ImageCommand {
     /// Build a bootable FreeBSD installer image with freearchy baked in
     Build {
-        /// FreeBSD release to base on, e.g. 15.0
-        #[arg(long, default_value = "15.0")]
+        /// FreeBSD release to base on, e.g. 15.1
+        #[arg(long, default_value = "15.1")]
         release: String,
     },
 }

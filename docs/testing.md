@@ -8,8 +8,8 @@ Only bake the custom image once that path is green.
 - Install **UTM**: `brew install --cask utm`, or the free dmg from
   getutm.app / GitHub releases (the paid App Store build is identical;
   it just funds the project). No account needed.
-- Download: `FreeBSD-15.0-RELEASE-arm64-aarch64-disc1.iso` from
-  `download.freebsd.org/releases/ISO-IMAGES/15.0/` — **aarch64**, not amd64
+- Download: `FreeBSD-15.1-RELEASE-arm64-aarch64-disc1.iso` from
+  `download.freebsd.org/releases/ISO-IMAGES/15.1/` — **aarch64**, not amd64
   (Apple Silicon; x86 means full emulation, too slow to be useful)
 - UTM → New → **Virtualize** → **Other** → pick the ISO
 - 2+ vCPU, 4+ GB RAM, 20+ GB disk, shared (NAT) networking — pkg needs internet
@@ -76,7 +76,7 @@ Hyprland                       # from a getty, as your user
 
 ## 6. Then the ISO
 
-`freearchy image build --release 15.0` (ARCH=aarch64 by default) produces a
+`freearchy image build --release 15.1` (ARCH=aarch64 by default) produces a
 memstick `.img` — boot the *built* image in UTM the same way; the bsdinstall
 `installerconfig` auto-installs and first-boot runs freearchy.
 

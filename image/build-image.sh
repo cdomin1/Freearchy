@@ -8,7 +8,7 @@
 # MUST be run on FreeBSD. Tested target: amd64.
 set -eu
 
-RELEASE="${1:-15.0}"
+RELEASE="${1:-15.1}"
 ARCH="${ARCH:-aarch64}"      # Apple Silicon dev host default; override for amd64
 
 # FreeBSD names images differently per arch.

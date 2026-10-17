@@ -10,7 +10,7 @@
 - [ ] Validate every pkg name in `packages/*.txt` (`pkg search`) and trim `?` markers
 - [ ] Verify seatd + turnstile give a working session (XDG_RUNTIME_DIR, dbus, portals)
 - [ ] GPU matrix: i915kms / amdgpu / vmwgfx in a VM; document `sysrc kld_list` guidance
-- [ ] End-to-end `freearchy install` on clean 15.0-RELEASE → Hyprland session
+- [ ] End-to-end `freearchy install` on clean 15.1-RELEASE → Hyprland session
 
 ## Phase 3 — shell
 - [x] quickshell on FreeBSD — **solved upstream**: `x11/quickshell` in ports since Jan 2026
