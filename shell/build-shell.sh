@@ -114,7 +114,7 @@ fi
 # TODO: pin upstream repo URL once our fork layout is decided.
 if [ "${SKIP_M3SHAPES:-0}" != "1" ]; then
     log "Building qt6-m3shapes"
-    M3_REPO="${M3SHAPES_REPO:-https://github.com/caelestia-dots/qt6-m3shapes.git}"
+    M3_REPO="${M3SHAPES_REPO:-https://github.com/soramanew/m3shapes.git}"
     [ -d "$BUILD_DIR/qt6-m3shapes" ] || git clone --depth 1 "$M3_REPO" \
         "$BUILD_DIR/qt6-m3shapes"
     cmake -S "$BUILD_DIR/qt6-m3shapes" -B "$BUILD_DIR/qt6-m3shapes/build" \
