@@ -14,6 +14,8 @@ QS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell"
 BUILD_DIR="${BUILD_DIR:-/tmp/freearchy-shell-build}"
 FONTS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
 
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+
 log() { printf '\033[1m==> %s\033[0m\n' "$*"; }
 
 # Runs under `freearchy install` (root) or standalone (needs doas for pkg/make install)
@@ -64,6 +66,20 @@ if [ "$SKIP_CAVA" != "1" ]; then
         && gmake \
         && $SUDO gmake install pkgconfigdir=/usr/local/libdata/pkgconfig) 2>&1 || \
         echo "    warn: libcava build failed — visualizer disabled"
+fi
+
+# --- libsensors shim -----------------------------------------------------------
+# lm_sensors doesn't exist on FreeBSD — our shim answers the API from sysctl
+# thermal nodes so caelestia's plugin can link and show real temps.
+if ! pkg-config --exists libsensors 2>/dev/null && \
+   ! ldconfig -r 2>/dev/null | grep -q libsensors; then
+    log "Installing libsensors shim (FreeBSD sysctl backend)"
+    COMPAT="$SCRIPT_DIR/compat/libsensors"
+    $SUDO cc -shared -fPIC -I"$COMPAT" -o /usr/local/lib/libsensors.so.5 \
+        "$COMPAT/sensors.c"
+    $SUDO ln -sf libsensors.so.5 /usr/local/lib/libsensors.so
+    $SUDO mkdir -p /usr/local/include/sensors
+    $SUDO cp "$COMPAT/sensors/sensors.h" /usr/local/include/sensors/sensors.h
 fi
 
 # --- caelestia shell ----------------------------------------------------------
