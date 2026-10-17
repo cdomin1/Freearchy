@@ -7,7 +7,7 @@ set -eu
 
 # --- knobs -----------------------------------------------------------------
 SHELL_REPO="${SHELL_REPO:-https://github.com/caelestia-dots/shell.git}"
-SHELL_BRANCH="${SHELL_BRANCH:-freebsd}"
+SHELL_BRANCH="${SHELL_BRANCH:-}"      # set to 'freebsd' once our fork exists
 QS_GIT="${QS_GIT:-0}"                 # 1 = build quickshell from git instead of pkg
 SKIP_CAVA="${SKIP_CAVA:-0}"           # 1 = skip libcava build (hides visualizer)
 QS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell"
@@ -45,7 +45,11 @@ mkdir -p "$QS_DIR"
 if [ -d "$QS_DIR/caelestia/.git" ]; then
     git -C "$QS_DIR/caelestia" pull --ff-only
 else
-    git clone -b "$SHELL_BRANCH" "$SHELL_REPO" "$QS_DIR/caelestia"
+    if [ -n "$SHELL_BRANCH" ]; then
+        git clone -b "$SHELL_BRANCH" "$SHELL_REPO" "$QS_DIR/caelestia"
+    else
+        git clone --depth 1 "$SHELL_REPO" "$QS_DIR/caelestia"
+    fi
 fi
 
 # C++ QML plugin — caelestia builds libs into its own dir.

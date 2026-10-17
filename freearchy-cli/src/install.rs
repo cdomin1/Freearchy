@@ -17,8 +17,28 @@ pub fn run(no_packages: bool, dev: bool, no_shell: bool) -> Result<()> {
     theme::set("tokyo-night")?;
 
     if !no_shell {
+        // Run with HOME aimed at the invoking user so QS_DIR/FONTS_DIR land in
+        // their ~/.config / ~/.local even though pkg runs as root.
         let script = repo.join("shell/build-shell.sh");
-        util::run("sh", &[script.to_str().unwrap()])?;
+        let home = util::home()?;
+        let status = std::process::Command::new("sh")
+            .arg(&script)
+            .env("HOME", &home)
+            .status()?;
+        anyhow::ensure!(status.success(), "build-shell.sh exited with {status}");
+    }
+
+    // Root-owned dirs created above belong to the desktop user.
+    if let Some(user) = util::invoking_user() {
+        let home = util::home()?;
+        for dir in [home.join(".config"), home.join(".local/share")] {
+            if dir.exists() {
+                let _ = util::run(
+                    "chown",
+                    &["-R", &format!("{user}:{user}"), dir.to_str().unwrap()],
+                );
+            }
+        }
     }
 
     println!("\nfreearchy installed. Log in via a getty and run `Hyprland`,");
@@ -60,8 +80,8 @@ fn system_setup() -> Result<()> {
     println!("    sysrc kld_list+=i915kms    # Intel");
     println!("    sysrc kld_list+=amdgpu     # AMD");
 
-    // Seat + GPU access for the installing user.
-    if let Ok(user) = std::env::var("SUDO_USER").or_else(|_| std::env::var("USER")) {
+    // Seat + GPU access for the user who invoked the install (via doas/sudo).
+    if let Some(user) = util::invoking_user() {
         let _ = util::run("pw", &["groupmod", "video", "-m", &user]);
     }
     Ok(())
