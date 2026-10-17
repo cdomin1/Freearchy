@@ -98,10 +98,14 @@ fi
 # C++ QML plugin — caelestia builds libs into its own dir.
 # TODO: verify upstream's build layout; adjust flags if it installs elsewhere.
 if [ -f "$QS_DIR/caelestia/CMakeLists.txt" ]; then
-    # shallow clones lack tags — upstream derives VERSION from git describe
+    # shallow clones lack tags — upstream derives VERSION from git describe.
+    # FreeBSD libc++ gates jthread/stop_token behind EXPERIMENTAL + -lc++experimental.
     VER=$(git -C "$QS_DIR/caelestia" describe --tags 2>/dev/null || echo "0.0.0")
     cmake -S "$QS_DIR/caelestia" -B "$QS_DIR/caelestia/build" \
-        -G Ninja -DCMAKE_BUILD_TYPE=Release -DVERSION="$VER"
+        -G Ninja -DCMAKE_BUILD_TYPE=Release -DVERSION="$VER" \
+        -DCMAKE_CXX_FLAGS="-D_LIBCPP_ENABLE_EXPERIMENTAL" \
+        -DCMAKE_SHARED_LINKER_FLAGS="-lc++experimental" \
+        -DCMAKE_EXE_LINKER_FLAGS="-lc++experimental"
     cmake --build "$QS_DIR/caelestia/build"
 fi
 
