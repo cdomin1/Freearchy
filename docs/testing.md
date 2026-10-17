@@ -98,6 +98,9 @@ memstick `.img` — boot the *built* image in UTM the same way; the bsdinstall
 
 ## Alternatives
 
+- **Parallels** — easiest UX; virtio disk/NIC usually just work (`vtbd0`,
+  `vtnet0`). Caveat: its display isn't a KMS-capable device, so expect no
+  `/dev/drm` nodes → everything except the Hyprland session is testable.
 - **tart** (`brew install tart`) — free, CLI-only, Apple Virtualization.framework;
   nice for scripted/headless testing, graphics window support is thinner
 - **qemu via brew** — full control, but you reimplement half of UTM by hand
