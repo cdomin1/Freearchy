@@ -19,7 +19,7 @@ use crate::util;
 const MNT: &str = "/mnt";
 const POOL: &str = "zroot";
 const REPO_TARBALL: &str =
-    "https://github.com/USER/freearchy/archive/refs/heads/main.tar.gz";
+    "https://github.com/cdomin1/Freearchy/archive/refs/heads/main.tar.gz";
 
 /// Fully-specified install request — produced by the TUI wizard, CLI flags,
 /// or the web installer. `execute` runs the same pipeline for all of them.

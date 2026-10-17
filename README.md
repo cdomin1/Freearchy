@@ -19,7 +19,7 @@ binary written in Rust.
 ## Quick start (on a fresh FreeBSD install)
 
 ```sh
-fetch https://raw.githubusercontent.com/USER/freearchy/main/boot.sh -o - | sh
+fetch https://raw.githubusercontent.com/cdomin1/Freearchy/main/boot.sh -o - | sh
 ```
 
 `boot.sh` installs git + rust, clones this repo to `~/.local/share/freearchy`,

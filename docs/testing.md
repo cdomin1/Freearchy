@@ -30,7 +30,7 @@ Stock `bsdinstall`, with these choices:
 
 ```sh
 # inside the guest (or over ssh)
-fetch https://raw.githubusercontent.com/USER/freearchy/main/boot.sh -o - | sh
+fetch https://raw.githubusercontent.com/cdomin1/Freearchy/main/boot.sh -o - | sh
 ```
 
 Or push the repo from a Mac checkout (COPYFILE_DISABLE avoids macOS

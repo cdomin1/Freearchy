@@ -1,13 +1,13 @@
 #!/bin/sh
 # freearchy bootstrap — run on a fresh FreeBSD 15.x install:
 #
-#   fetch https://raw.githubusercontent.com/USER/freearchy/main/boot.sh -o - | sh
+#   fetch https://raw.githubusercontent.com/cdomin1/Freearchy/main/boot.sh -o - | sh
 #
 # POSIX sh only — bash is not in FreeBSD base.
 set -eu
 
 FREEARCHY_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/freearchy"
-REPO_URL="${FREEARCHY_REPO:-https://github.com/USER/freearchy.git}"
+REPO_URL="${FREEARCHY_REPO:-https://github.com/cdomin1/Freearchy.git}"
 
 echo "==> Installing bootstrap tools (git, rust)"
 pkg install -y git-lite rust

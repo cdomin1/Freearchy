@@ -17,7 +17,7 @@ freearchy_firstboot_start()
     # it drops privileges appropriately per-step.
     /usr/sbin/pkg bootstrap -yf
     /usr/local/bin/pkg install -y git-lite rust
-    /usr/local/bin/git clone https://github.com/USER/freearchy.git \
+    /usr/local/bin/git clone https://github.com/cdomin1/Freearchy.git \
         /usr/local/freearchy
     FREEARCHY_HOME=/usr/local/freearchy \
         /usr/local/bin/cargo install --path /usr/local/freearchy/freearchy-cli \
