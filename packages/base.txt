@@ -3,9 +3,11 @@
 # (not fatal) if unavailable.
 
 seatd                  # seat management (required by hyprland without elogind)
-turnstile              # XDG_RUNTIME_DIR + user dbus/session services
+turnstile?             # user session services — no aarch64 pkg; 15.x base
+                       # already manages XDG_RUNTIME_DIR (/var/run/xdg)
 libudev-devd           # udev shim used by wlroots/libinput on FreeBSD
-drm-kmod               # GPU kernel modules (i915kms/amdgpu)
+drm-kmod?              # GPU kms modules — amd64-oriented; aarch64/VMs often
+                       # have no KMS driver (try versioned drm-*-kmod on hw)
 mesa-dri               # userspace GL drivers
 mesa-libs
 vulkan-loader
@@ -18,7 +20,7 @@ curl
 wget
 git-lite
 unzip
-p7zip
+7-zip                  # archivers/7-zip (p7zip is EOL/removed)
 xwayland               # hyprland embeds its own xwayland support
 xdg-user-dirs
 ca_root_nss
