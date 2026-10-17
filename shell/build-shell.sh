@@ -61,7 +61,8 @@ if [ "$SKIP_CAVA" != "1" ]; then
             -e 's/-D_POSIX_SOURCE//g' \
             -e 's/-D_XOPEN_SOURCE_EXTENDED//g' Makefile \
         && sed -i '' 's/^#inlcude/#include/' input/oss.c \
-        && gmake && $SUDO gmake install) 2>&1 || \
+        && gmake \
+        && $SUDO gmake install pkgconfigdir=/usr/local/libdata/pkgconfig) 2>&1 || \
         echo "    warn: libcava build failed — visualizer disabled"
 fi
 
