@@ -48,8 +48,12 @@ if [ "$SKIP_CAVA" != "1" ]; then
     [ -d "$BUILD_DIR/cava" ] || git clone --depth 1 "$CAVA_REPO" \
         "$BUILD_DIR/cava"
     (cd "$BUILD_DIR/cava" && ./autogen.sh && ./configure --prefix=/usr/local \
+        # strict-ANSI/POSIX feature macros hide BSD symbols (ENOTSUP,
+        # CLOCK_MONOTONIC) that the pipewire/sndio inputs need on FreeBSD
         && sed -i '' -e 's/-std=c99/-std=gnu99/' \
-            -e 's/-D_POSIX_C_SOURCE=200809L//' Makefile \
+            -e 's/-D_POSIX_C_SOURCE=200809L//g' \
+            -e 's/-D_POSIX_SOURCE//g' \
+            -e 's/-D_XOPEN_SOURCE_EXTENDED//g' Makefile \
         && gmake && doas gmake install) 2>&1 || \
         echo "    warn: libcava build failed — visualizer disabled"
 fi
