@@ -1,0 +1,22 @@
+# bsdinstall auto-install script for freearchy.
+# Docs: bsdinstall(8) — variables are consumed by the installer,
+# the script body at the bottom runs chrooted into the new system.
+
+PARTITIONS="ZFS"
+DISTRIBUTIONS="kernel.txz base.txz lib32.txz"
+BSDINSTALL_DISTSITE="https://download.freebsd.org/releases/amd64/15.0-RELEASE"
+
+export nonInteractive="YES"
+
+KEYMAP="us.keymap"
+HOSTNAME="freearchy"
+
+#!/bin/sh
+# --- post-install, chrooted into the target system ---
+
+# Network: DHCP on first NIC (installer env provides this)
+sysrc ifconfig_DEFAULT="DHCP"
+sysrc sshd_enable="YES"
+
+# Freearchy first boot: run the bootstrap, then remove itself.
+sysrc freearchy_firstboot_enable="YES"

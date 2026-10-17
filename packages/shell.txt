@@ -1,0 +1,33 @@
+# Runtime deps for Quickshell + Caelestia shell.
+# quickshell itself and qt6-m3shapes are BUILT FROM SOURCE (see shell/PORTING.md).
+
+qt6-base
+qt6-declarative
+qt6-svg
+qt6-shadertools
+qt6-wayland
+wayland
+wayland-protocols
+
+# Caelestia service deps — see shell/PORTING.md for FreeBSD substitutions
+brightnessctl             # backlight (exists in ports)
+ddcutil                   # external monitor brightness
+libqalculate              # calculator in launcher
+aubio                     # audio analysis for cava visualizer
+cava?                     # libcava may need a manual build — verify
+swappy                    # screenshot annotation
+fish                      # caelestia scripts use fish in places
+bash                      # caelestia scripts use bash
+grim
+slurp
+wl-clipboard
+cliphist
+pavucontrol
+imagemagick
+
+# Fonts (verify availability; else install TTFs via installer)
+cascadia-code
+noto
+noto-emoji?
+material-symbols?         # probably a manual TTF install
+rubik?

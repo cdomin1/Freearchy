@@ -1,0 +1,16 @@
+# Development tooling. `rust` is required to build freearchy-cli + quickshell.
+
+rust
+cmake
+ninja
+meson
+pkgconf
+gmake
+llvm?                  # base system clang usually suffices — verify
+gdb?
+python3
+py311-pip?
+nodejs
+npm?
+go?
+bastille               # jails management — the FreeBSD answer to docker

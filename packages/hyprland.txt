@@ -1,0 +1,9 @@
+# Compositor + hyprland ecosystem. Verify each with `pkg search`.
+
+hyprland                    # x11-wm/hyprland
+hypridle                    # idle daemon
+hyprlock                    # lock screen (fallback; caelestia ships its own)
+hyprpaper                   # wallpaper
+xdg-desktop-portal-hyprland # screen capture/share portal
+xdg-desktop-portal-gtk      # file chooser etc.
+hyprland-qtutils?           # dialogs/helpers — verify port name

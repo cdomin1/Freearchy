@@ -1,0 +1,32 @@
+#!/bin/sh
+# PROVIDE: freearchy_firstboot
+# REQUIRE: NETWORKING
+# BEFORE:  LOGIN
+# KEYWORD: firstboot
+
+. /etc/rc.subr
+
+name="freearchy_firstboot"
+rcvar="${name}_enable"
+start_cmd="${name}_start"
+
+freearchy_firstboot_start()
+{
+    echo "freearchy: running first-boot setup"
+    # Install bootstrap toolchain, clone repo, run installer as root —
+    # it drops privileges appropriately per-step.
+    /usr/sbin/pkg bootstrap -yf
+    /usr/local/bin/pkg install -y git-lite rust
+    /usr/local/bin/git clone https://github.com/USER/freearchy.git \
+        /usr/local/freearchy
+    FREEARCHY_HOME=/usr/local/freearchy \
+        /usr/local/bin/cargo install --path /usr/local/freearchy/freearchy-cli \
+        --root /usr/local
+    /usr/local/bin/freearchy install --dev || true
+
+    # One-shot: don't run again.
+    sysrc -x "${rcvar}"
+}
+
+load_rc_config "$name"
+run_rc_command "$1"

@@ -1,0 +1,26 @@
+# Core system packages. One per line; '#' comments and blanks ignored.
+# Verify names on target with `pkg search <name>` before trimming the list.
+
+seatd                  # seat management (required by hyprland without elogind)
+turnstile              # XDG_RUNTIME_DIR + user dbus/session services
+libudev-devd           # udev shim used by wlroots/libinput on FreeBSD
+drm-kmod               # GPU kernel modules (i915kms/amdgpu)
+mesa-dri               # userspace GL drivers
+mesa-libs
+vulkan-loader
+dbus
+polkit
+pipewire
+wireplumber
+doas                   # lighter sudo alternative (security/doas)
+curl
+wget
+git-lite
+unzip
+p7zip
+xwayland
+xwayland-satellite?    # TODO: only needed if we ship niri module; drop here
+xdg-user-dirs
+ca_root_nss
+avahi-app              # mDNS (optional but commonly expected)
+cups?                  # printing — keep optional
