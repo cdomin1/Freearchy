@@ -6,8 +6,8 @@
 quickshell                # x11/quickshell — packaged since Jan 2026
 
 # Caelestia service deps — see shell/PORTING.md for FreeBSD substitutions
-brightnessctl             # backlight
-ddcutil                   # external monitor brightness
+# (brightnessctl not needed — FreeBSD has backlight(8) in base)
+ddcutil?                  # external monitor brightness — no aarch64 pkg
 libqalculate              # calculator in launcher
 aubio                     # audio analysis for the cava visualizer
 swappy                    # screenshot annotation
@@ -18,7 +18,7 @@ slurp
 wl-clipboard
 cliphist
 pavucontrol
-imagemagick
+ImageMagick7
 upower?                   # battery — likely what caelestia reads; verify
 networkmgr?               # GhostBSD's NetworkManager-ish tool — candidate backend
 powerdxx?                 # power-profile-ish control via powerd
