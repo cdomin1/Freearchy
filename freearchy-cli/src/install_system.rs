@@ -193,7 +193,9 @@ fn partition(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
     util::run("gpart", &["create", "-s", "gpt", dev])?;
     util::run("gpart", &["add", "-a", "4k", "-t", "efi", "-s", "260m", "-l", "efiboot", dev])?;
     util::run("gpart", &["add", "-a", "4k", "-t", "freebsd-zfs", "-l", "zroot", dev])?;
-    util::run("newfs_msdos", &["-F", "32", "-L", "EFISYS", &format!("{dev}p1")])
+    util::run("newfs_msdos", &[
+        "-F", "32", "-c", "1", "-L", "EFISYS", &format!("{dev}p1"),
+    ])
 }
 
 /// Create the pool + datasets under /mnt. Returns a guard-ish struct with the
