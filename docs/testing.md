@@ -33,14 +33,22 @@ Stock `bsdinstall`, with these choices:
 fetch https://raw.githubusercontent.com/USER/freearchy/main/boot.sh -o - | sh
 ```
 
-Or clone the repo by hand and run pieces:
+Or push the repo from a Mac checkout (COPYFILE_DISABLE avoids macOS
+`._*` AppleDouble files polluting the tree):
 
 ```sh
-pkg install git-lite rust
-git clone <repo> ~/.local/share/freearchy
-cargo install --path ~/.local/share/freearchy/freearchy-cli --root ~/.local
-freearchy install          # add --no-packages / --no-shell to bisect failures
-freearchy doctor
+cd ~/Developer && COPYFILE_DISABLE=1 tar czf - --exclude target freearchy | \
+    ssh <user>@<vm-ip> 'tar xzf -'
+```
+
+Then inside the guest (repo already at ~/freearchy after the tar copy):
+
+```sh
+pkg install -y git-lite rust          # as root
+cargo install --path ~/freearchy/freearchy-cli --root /usr/local
+export FREEARCHY_HOME=~/freearchy     # repo isn't at the default path here
+freearchy doctor                      # baseline — expect failures
+freearchy install                     # as root; add --no-packages / --no-shell to bisect
 ```
 
 ## 3b. Or: skip bsdinstall entirely (GUI installer)
