@@ -18,7 +18,10 @@
 - [ ] Build qt6-m3shapes + libcava; freearchy-shell fork with service patches (see shell/PORTING.md)
 - [ ] First degraded milestone: shell runs, network/sensor widgets stubbed or hidden
 
-## Phase 4 — polish
+## Phase 4 — polish + custom installer
+- [x] `freearchy install-system` — own installer (gpart→ZFS→dists→loader→payload);
+      dialoguer prompts today, ratatui UI is a drop-in later
+- [ ] Custom live media that runs install-system instead of bsdinstall
 - [ ] Theme coverage across all apps (foot, btop, fastfetch, nvim, shell)
 - [ ] Wallpapers; default keybind sheet (`freearchy help`?)
 - [ ] ISO build verified end-to-end in CI (QEMU)

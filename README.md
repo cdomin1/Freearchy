@@ -28,7 +28,7 @@ builds the CLI, and runs `freearchy install`.
 ## Layout
 
 ```
-freearchy-cli/   Rust CLI: install / update / theme / doctor / image
+freearchy-cli/   Rust CLI: install / update / theme / doctor / image / install-system
 packages/        pkg manifests (base, hyprland, shell, desktop, dev)
 config/hyprland/ Default Hyprland configuration
 shell/           Caelestia fork notes + FreeBSD port patches

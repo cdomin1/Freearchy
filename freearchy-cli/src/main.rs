@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 mod doctor;
 mod image;
 mod install;
+mod install_system;
 mod packages;
 mod theme;
 mod util;
@@ -39,6 +40,21 @@ enum Command {
     Theme {
         #[command(subcommand)]
         command: ThemeCommand,
+    },
+    /// Install FreeBSD + freearchy onto a disk (runs on the live installer
+    /// image). Interactive wizard by default; fully flag-driven with --yes.
+    InstallSystem {
+        /// Target disk, e.g. nda0 or da0. Prompted if omitted.
+        #[arg(long)]
+        disk: Option<String>,
+        #[arg(long)]
+        hostname: Option<String>,
+        /// Login user to create (wheel+video). Prompted if omitted.
+        #[arg(long)]
+        user: Option<String>,
+        /// Non-interactive: accept defaults, no prompts. USE WITH CARE.
+        #[arg(long)]
+        yes: bool,
     },
     /// Check the system for common problems
     Doctor,
@@ -81,6 +97,9 @@ fn main() -> Result<()> {
             ThemeCommand::Set { name } => theme::set(&name),
             ThemeCommand::Next => theme::next(),
         },
+        Command::InstallSystem { disk, hostname, user, yes } => {
+            install_system::run(disk, hostname, user, yes)
+        }
         Command::Doctor => doctor::run(),
         Command::Image { command } => match command {
             ImageCommand::Build { release } => image::build(&release),
