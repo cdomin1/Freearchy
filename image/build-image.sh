@@ -42,8 +42,17 @@ echo "==> Attaching image"
 MD=$(mdconfig -a -t vnode -f "$IMG")
 mkdir -p "$WORK/mnt"
 
-# 15.x memstick: MBR → s1 efi, s2 freebsd, s2a ufs root. Mounts rw.
-mount -o rw "/dev/${MD}s2a" "$WORK/mnt"
+# amd64 memstick: MBR → freebsd → s2a ufs root
+# aarch64 memstick: GPT → p2 freebsd-ufs root
+UFS_PART=$(gpart show -p "/dev/$MD" | awk '$4 == "freebsd-ufs" {print $3; exit}')
+if [ -z "$UFS_PART" ]; then
+    # MBR: ufs lives inside the freebsd slice (mdNs2 → mdNs2a)
+    SLICE=$(gpart show -p "/dev/$MD" | awk '$4 == "freebsd" {print $3; exit}')
+    [ -n "$SLICE" ] && \
+        UFS_PART=$(gpart show -p "/dev/$SLICE" | awk '$4 == "freebsd-ufs" {print $3; exit}')
+fi
+[ -n "$UFS_PART" ] || { echo "!! no freebsd-ufs partition on $MD" >&2; exit 1; }
+mount -o rw "/dev/$UFS_PART" "$WORK/mnt"
 
 echo "==> Injecting freearchy launcher"
 mkdir -p "$WORK/mnt/usr/local/bin"
