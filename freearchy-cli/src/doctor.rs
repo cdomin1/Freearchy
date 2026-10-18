@@ -23,6 +23,7 @@ const CHECKS: &[Check] = &[
     Check { name: "seatd enabled", run: || rcvar("seatd_enable") },
     Check { name: "dbus enabled", run: || rcvar("dbus_enable") },
     Check { name: "seatd running", run: || service("seatd") },
+    Check { name: "gpu detected / driver", run: gpu_state },
     Check { name: "drm kms module loaded", run: kms_loaded },
     Check { name: "XDG_RUNTIME_DIR set", run: xdg_runtime_dir },
     Check { name: "hyprland config linked", run: hypr_config },
@@ -54,6 +55,34 @@ fn service(name: &str) -> CheckResult {
         return CheckResult::Ok("running".into());
     }
     CheckResult::Fail(format!("{name} not running"))
+}
+
+fn gpu_state() -> CheckResult {
+    let gpus = crate::gpu::detect();
+    if gpus.is_empty() {
+        return CheckResult::Warn("no known GPU (virt/framebuffer?)".into());
+    }
+    let names: Vec<&str> = gpus.iter().map(|g| g.label()).collect();
+    // warn if the expected kmod for the detected vendor isn't loaded
+    let loaded = util::capture("kldstat", &[]).unwrap_or_default();
+    let missing: Vec<&str> = gpus
+        .iter()
+        .filter_map(|g| match g {
+            crate::gpu::Gpu::Intel if !loaded.contains("i915kms") => Some("i915kms"),
+            crate::gpu::Gpu::Amd if !loaded.contains("amdgpu") => Some("amdgpu"),
+            crate::gpu::Gpu::Nvidia if !loaded.contains("nvidia") => Some("nvidia"),
+            _ => None,
+        })
+        .collect();
+    if missing.is_empty() {
+        CheckResult::Ok(names.join(", "))
+    } else {
+        CheckResult::Warn(format!(
+            "{} — kmod not loaded: {} (sysrc kld_list)",
+            names.join(", "),
+            missing.join(", ")
+        ))
+    }
 }
 
 fn kms_loaded() -> CheckResult {

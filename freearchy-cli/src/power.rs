@@ -8,6 +8,46 @@ use crate::util;
 
 const EPP_MIBS: [&str; 2] = ["dev.hwpstate_intel.0.epp", "dev.hwpstate_amd.0.epp"];
 
+fn acpi_call(call: &str) -> Result<()> {
+    // FreeBSD's acpi_call utility: `acpi_call -i "<method> <arg>"`
+    let out = util::capture("acpi_call", &["-i", call])
+        .or_else(|| util::capture("acpi_call", &[call]));
+    match out {
+        Some(v) if v.contains("0x80000000") => {
+            bail!("ACPI rejected {call} (call failure status)")
+        }
+        Some(_) => Ok(()),
+        None => bail!(
+            "acpi_call unavailable — `pkg install acpi_call` + `kldload acpi_call` (amd64 ThinkPads)"
+        ),
+    }
+}
+
+/// ThinkPad charge thresholds via the embedded controller (tpacpi-bat
+/// encoding: arg = percent | battery<<8 against HKEY.BCCS/BCSS).
+pub fn battery(start: Option<u8>, stop: Option<u8>) -> Result<()> {
+    if start.is_none() && stop.is_none() {
+        bail!("usage: freearchy power battery --start <pct> --stop <pct>");
+    }
+    let _ = util::capture("kldload", &["acpi_call"]); // no-op if loaded/absent
+    // EC path varies by model: LPC on most, LPCB on newer (S2, 13g2…)
+    for base in ["\\_SB.PCI0.LPC.EC.HKEY", "\\_SB.PCI0.LPCB.EC.HKEY"] {
+        let probe = util::capture("acpi_call", &["-i", &format!("{base}.BDSS 0x0")])
+            .or_else(|| util::capture("acpi_call", &[&format!("{base}.BDSS 0x0")]));
+        if probe.is_none() {
+            continue;
+        }
+        if let Some(p) = start {
+            acpi_call(&format!("{base}.BCCS 0x{:x}", (*p as u32) | 0x100))?;
+        }
+        if let Some(p) = stop {
+            acpi_call(&format!("{base}.BCSS 0x{:x}", (*p as u32) | 0x100))?;
+        }
+        return Ok(());
+    }
+    bail!("no ThinkPad EC found (not a ThinkPad, or acpi_call not loaded)")
+}
+
 fn sysctl_get(mib: &str) -> Option<String> {
     util::capture("sysctl", &["-n", mib]).map(|s| s.trim().to_string())
 }

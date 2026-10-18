@@ -11,6 +11,13 @@ pub fn run(no_packages: bool, dev: bool, no_shell: bool) -> Result<()> {
 
     if !no_packages {
         packages::install_all(&repo, dev)?;
+        // GPU-conditional packages (nvidia-driver when detected on amd64)
+        for pkg in crate::gpu::packages() {
+            println!("==> Installing {pkg} (detected GPU)");
+            if util::run("pkg", &["install", "-y", pkg]).is_err() {
+                eprintln!("    warn: {pkg} failed to install");
+            }
+        }
     }
     system_setup()?;
     link_configs(&repo)?;
@@ -118,6 +125,9 @@ fn system_setup() -> Result<()> {
         let _ = util::run("pw", &["groupmod", "video", "-m", &user]);
     }
 
+    // Pin the right X11 driver for detected hardware (hybrid-safe).
+    crate::gpu::write_xorg_conf("");
+
     power_setup(repo)?;
     Ok(())
 }
@@ -173,6 +183,15 @@ fn power_setup(repo: &Path) -> Result<()> {
     util::run("sysrc", &["powerdxx_enable=YES"])?;
     let _ = util::run("service", &["powerdxx", "start"]);
     let _ = util::run("/usr/local/libexec/freearchy-power", &["ac"]);
+
+    // driverless PCI devices → D3 (the knob that exists; FreeBSD has no
+    // Linux-style ASPM policy manager)
+    let lc = "/boot/loader.conf";
+    let mut l = fs::read_to_string(lc).unwrap_or_default();
+    if !l.contains("do_power_nodriver") {
+        l.push_str("hw.pci.do_power_nodriver=\"3\"\n");
+        let _ = fs::write(lc, l);
+    }
     Ok(())
 }
 

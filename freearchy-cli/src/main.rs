@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 mod doctor;
+mod gpu;
 mod image;
 mod install;
 mod install_system;
@@ -95,6 +96,15 @@ enum PowerCommand {
     Status,
     /// Apply a profile (devd calls this on AC events too)
     Set { mode: String },
+    /// ThinkPad charge thresholds via acpi_call (e.g. --stop 80)
+    Battery {
+        /// Charge start threshold percent
+        #[arg(long)]
+        start: Option<u8>,
+        /// Charge stop threshold percent
+        #[arg(long)]
+        stop: Option<u8>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -129,6 +139,7 @@ fn main() -> Result<()> {
         Command::Power { command } => match command {
             PowerCommand::Status => power::status(),
             PowerCommand::Set { mode } => power::set(&mode),
+            PowerCommand::Battery { start, stop } => power::battery(start, stop),
         },
         Command::Doctor => doctor::run(),
         Command::Image { command } => match command {

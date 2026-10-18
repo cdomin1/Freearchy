@@ -343,7 +343,9 @@ fn boot_loader(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
         format!("{MNT}/boot/loader.conf"),
         format!(
             "zfs_load=\"YES\"\nvfs.root.mountfrom=\"zfs:{}/ROOT/default\"\n\
-             kern.geom.label.disk_ident.enable=\"0\"\nkern.geom.label.gptid.enable=\"0\"\n",
+             kern.geom.label.disk_ident.enable=\"0\"\nkern.geom.label.gptid.enable=\"0\"\n\
+             # power: put driverless PCI devices into D3\n\
+             hw.pci.do_power_nodriver=\"3\"\n",
             pool()
         ),
     )?;
@@ -358,26 +360,13 @@ fn boot_loader(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
 
 /// KMS module for the detected GPU — linuxkpi-backed drm-kmod drivers.
 /// pciconf: vga lines look like `vgapci0@pci0:0:2:0: class=0x030000 ... vendor=0x8086`
-fn kms_module() -> Option<&'static str> {
-    let pci = util::capture("pciconf", &["-lv"]).unwrap_or_default();
-    for line in pci.lines() {
-        if !(line.contains("class=0x030000") || line.contains("class=0x030200")) {
-            continue;
-        }
-        if line.contains("vendor=0x8086") {
-            return Some("i915kms");
-        }
-        if line.contains("vendor=0x1002") {
-            return Some("amdgpu");
-        }
-    }
-    None
-}
-
 fn system_files(spec: &InstallSpec) -> Result<()> {
-    let kld = kms_module()
-        .map(|m| format!("kld_list=\"{m}\"\n"))
-        .unwrap_or_default();
+    let kld_list = crate::gpu::kld_list();
+    let kld = if kld_list.is_empty() {
+        String::new()
+    } else {
+        format!("kld_list=\"{kld_list}\"\n")
+    };
     fs::write(
         format!("{MNT}/etc/rc.conf"),
         format!(
@@ -387,6 +376,7 @@ fn system_files(spec: &InstallSpec) -> Result<()> {
             spec.hostname, spec.keymap, kld
         ),
     )?;
+    crate::gpu::write_xorg_conf(MNT);
     sleep_setup();
     // git identity — the wizard's email/fullname feed ~/.gitconfig
     if let Some(email) = &spec.email {
