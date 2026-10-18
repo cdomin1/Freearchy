@@ -6,8 +6,10 @@ if [ -x /usr/local/bin/dbus-launch ]; then
     eval "$(dbus-launch --sh-syntax --exit-with-session)"
 fi
 
-# compositor for the Hypr-ish look on X11
-picom --config "$HOME/.config/freearchy/x11/picom.conf" -b 2>/dev/null &
+# compositor for the Hypr-ish look on X11 — animations need
+# --experimental-backends (pijulius fork)
+picom --experimental-backends --config \
+    "$HOME/.config/freearchy/x11/picom.conf" -b 2>/dev/null &
 
 # wallpaper / cursor sanity
 xsetroot -cursor_name left_ptr 2>/dev/null

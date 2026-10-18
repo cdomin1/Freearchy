@@ -15,6 +15,7 @@ pub fn run(no_packages: bool, dev: bool, no_shell: bool) -> Result<()> {
     system_setup()?;
     link_configs(&repo)?;
     install_wm(&repo)?;
+    install_picom(&repo)?;
     theme::set("tokyo-night")?;
 
     if !no_shell {
@@ -60,6 +61,21 @@ fn install_wm(repo: &Path) -> Result<()> {
     util::run("cargo", &[
         "install", "--path", &path.to_string_lossy(), "--root", "/usr/local",
     ])?;
+    Ok(())
+}
+
+/// Build the animated picom fork (pijulius/picom) — not in ports.
+fn install_picom(repo: &Path) -> Result<()> {
+    println!("==> Building picom (pijulius animation fork)");
+    let home = util::home()?;
+    let status = std::process::Command::new("sh")
+        .arg(repo.join("x11/build-picom.sh"))
+        .env("HOME", &home)
+        .status()?;
+    if !status.success() {
+        // Non-fatal: a stock picom pkg or none still leaves a working session.
+        eprintln!("    warn: picom build failed — session still works, no animations");
+    }
     Ok(())
 }
 

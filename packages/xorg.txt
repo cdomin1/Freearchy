@@ -5,9 +5,28 @@ xauth
 xmodmap                   # REQUIRED: penrose parses keybinds via xmodmap
 xrandr
 setxkbmap
-picom                     # compositor — rounded corners/shadows on X11
 rofi                      # launcher (Super+Space)
 alacritty                 # terminal (foot is wayland-only)
+xset                      # provides xsetroot for the root cursor
+
+# picom is built from source (x11/build-picom.sh, pijulius animations fork) —
+# its build deps:
+meson
+ninja
+pkgconf
+libconfig
+libev
+uthash                  # headers-only
+pixman
+libX11
+x11-xcb
+xcb-util-renderutil
+xcb-util-image
+xcb-util
+libglvnd
+libepoxy?
+libxdg-basedir?         # picom optional dep
+pcre2?                  # picom optional dep
 
 # DDX drivers — modesetting covers most modern hw; these as fallbacks/opts
 xf86-input-libinput
