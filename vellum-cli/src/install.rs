@@ -19,7 +19,7 @@ pub fn run(no_packages: bool, dev: bool, no_shell: bool) -> Result<()> {
             }
         }
     }
-    system_setup()?;
+    system_setup(&repo)?;
     link_configs(&repo)?;
     install_wm(&repo)?;
     install_picom(&repo)?;
@@ -95,7 +95,7 @@ pub fn update() -> Result<()> {
 }
 
 /// Services, groups and kernel modules needed for a Wayland session on FreeBSD.
-fn system_setup() -> Result<()> {
+fn system_setup(repo: &Path) -> Result<()> {
     // Service enables — idempotent.
     for (service, _) in [("seatd", "on"), ("dbus", "on")] {
         util::run("sysrc", &[&format!("{service}_enable=YES")])?;

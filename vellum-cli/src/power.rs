@@ -38,10 +38,10 @@ pub fn battery(start: Option<u8>, stop: Option<u8>) -> Result<()> {
             continue;
         }
         if let Some(p) = start {
-            acpi_call(&format!("{base}.BCCS 0x{:x}", (*p as u32) | 0x100))?;
+            acpi_call(&format!("{base}.BCCS 0x{:x}", (p as u32) | 0x100))?;
         }
         if let Some(p) = stop {
-            acpi_call(&format!("{base}.BCSS 0x{:x}", (*p as u32) | 0x100))?;
+            acpi_call(&format!("{base}.BCSS 0x{:x}", (p as u32) | 0x100))?;
         }
         return Ok(());
     }
