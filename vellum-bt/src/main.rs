@@ -1,4 +1,4 @@
-//! freearchy-bt — BlueZ-compatible Bluetooth daemon for FreeBSD.
+//! vellum-bt — BlueZ-compatible Bluetooth daemon for FreeBSD.
 //!
 //! Exposes the subset of org.bluez D-Bus API that desktop shells
 //! (quickshell, panels, tray) consume, backed by FreeBSD's native HCI
@@ -15,7 +15,7 @@ use anyhow::Result;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    eprintln!("freearchy-bt starting");
+    eprintln!("vellum-bt starting");
 
     let adapters = hci::adapters();
     if adapters.is_empty() {

@@ -5,11 +5,11 @@ use std::path::PathBuf;
 
 use crate::util;
 
-/// ~/.config/freearchy/current/theme -> <repo>/themes/<name>
+/// ~/.config/vellum/current/theme -> <repo>/themes/<name>
 /// App configs include files out of this symlinked dir, so a theme swap
 /// is one relink + a compositor reload.
 fn theme_link() -> Result<PathBuf> {
-    Ok(util::config_home()?.join("freearchy/current/theme"))
+    Ok(util::config_home()?.join("vellum/current/theme"))
 }
 
 fn themes_dir() -> Result<PathBuf> {
@@ -40,7 +40,7 @@ pub fn list() -> Result<()> {
 pub fn set(name: &str) -> Result<()> {
     let src = themes_dir()?.join(name);
     if !src.is_dir() {
-        bail!("no such theme: {name} (run `freearchy theme list`)");
+        bail!("no such theme: {name} (run `vellum theme list`)");
     }
     let link = theme_link()?;
     if let Some(parent) = link.parent() {
@@ -76,7 +76,7 @@ fn theme_key(src: &PathBuf, key: &str) -> Option<String> {
 /// gradient from the palette. Applies with feh if a session is up.
 fn apply_wallpaper(src: &PathBuf, name: &str) {
     let Ok(home) = util::home() else { return };
-    let dir = home.join(".local/share/freearchy");
+    let dir = home.join(".local/share/vellum");
     if fs::create_dir_all(&dir).is_err() { return }
     let out = dir.join("wallpaper.png");
 

@@ -1,4 +1,4 @@
-//! freearchy-wm — Freearchy's X11 tiling window manager.
+//! vellum-wm — Vellum's X11 tiling window manager.
 //!
 //! Built on penrose (pure-Rust x11rb backend). Keybinds follow the
 //! Omarchy/Hyprland muscle-memory map: Super+h/j/k/l focus, Super+Enter
@@ -40,7 +40,7 @@ const TERMINAL: &str = "alacritty";
 const LAUNCHER: &str = "rofi -show drun";
 
 // --- theme colors (Tokyo Night defaults; overridden by the active theme's
-//     wm.conf at ~/.config/freearchy/current/theme) ----------------------------
+//     wm.conf at ~/.config/vellum/current/theme) ----------------------------
 const TN_ACCENT: u32 = 0x7aa2f7ff;    // blue accent — focused border
 const TN_GREY: u32 = 0x414868ff;      // unfocused border
 
@@ -55,7 +55,7 @@ fn hex_color(s: &str) -> Option<u32> {
 /// Read `focused`/`unfocused` hex colors from the theme symlink's wm.conf.
 fn theme_borders() -> (u32, u32) {
     let home = std::env::var("HOME").unwrap_or_default();
-    let path = format!("{home}/.config/freearchy/current/theme/wm.conf");
+    let path = format!("{home}/.config/vellum/current/theme/wm.conf");
     let Ok(text) = std::fs::read_to_string(&path) else {
         return (TN_ACCENT, TN_GREY);
     };
@@ -119,7 +119,6 @@ fn raw_key_bindings() -> HashMap<String, Box<dyn KeyEventHandler<RustConn>>> {
         "M-space" => spawn(LAUNCHER),
         "M-b" => spawn("firefox"),
         "M-f" => spawn("nemo"),
-        "M-S-a" => spawn("alacritty -e aichat"),   // AI assistant (Omarchy-style)
 
         // floating toggle (Omarchy: Super+V)
         "M-v" => penrose::builtin::actions::floating::float_focused(),

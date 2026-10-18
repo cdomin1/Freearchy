@@ -3,13 +3,13 @@ use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 
-/// Where the freearchy repo lives on an installed system.
+/// Where the vellum repo lives on an installed system.
 /// Omarchy uses ~/.local/share/omarchy; we mirror that convention.
 pub fn repo_root() -> Result<PathBuf> {
-    if let Ok(p) = env::var("FREEARCHY_HOME") {
+    if let Ok(p) = env::var("VELLUM_HOME") {
         return Ok(PathBuf::from(p));
     }
-    Ok(home()?.join(".local/share/freearchy"))
+    Ok(home()?.join(".local/share/vellum"))
 }
 
 pub fn home() -> Result<PathBuf> {
@@ -87,7 +87,7 @@ pub fn on_path(binary: &str) -> bool {
 /// Only meaningful at runtime; keeps the CLI checkable off-FreeBSD.
 pub fn ensure_freebsd() -> Result<()> {
     if env::consts::OS != "freebsd" {
-        bail!("freearchy must run on FreeBSD (this is {})", env::consts::OS);
+        bail!("vellum must run on FreeBSD (this is {})", env::consts::OS);
     }
     Ok(())
 }

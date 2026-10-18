@@ -1,5 +1,5 @@
 #!/bin/sh
-# Freearchy live installer — replaces bsdinstall's startbsdinstall on our
+# Vellum live installer — replaces bsdinstall's startbsdinstall on our
 # media. Invoked once per console by /usr/libexec/bsdinstall/runconsoles
 # (arg $1 is the console name, "primary" when multicons is disabled).
 
@@ -18,7 +18,7 @@ if [ $? -eq 0 ]; then
     fi
 else
     echo
-    echo "Welcome to Freearchy!"
+    echo "Welcome to Vellum!"
     echo
     echo "Please choose the appropriate terminal type for your system."
     echo "Common console types are:"
@@ -35,9 +35,9 @@ export TERM
 resizewin -z 2>/dev/null
 
 # Network once per boot: DHCP on every plausible NIC. The dist sets and the
-# freearchy payload are fetched over the network during install.
-if [ ! -f /tmp/.freearchy-net ]; then
-    touch /tmp/.freearchy-net
+# vellum payload are fetched over the network during install.
+if [ ! -f /tmp/.vellum-net ]; then
+    touch /tmp/.vellum-net
     for i in $(ifconfig -l); do
         case "$i" in lo*|ipfw*|pflog*|pfsync*|wlan*) continue ;; esac
         ifconfig "$i" up 2>/dev/null
@@ -49,16 +49,16 @@ if [ ! -f /tmp/.freearchy-net ]; then
     done
 fi
 
-if [ ! -x /usr/local/bin/freearchy ]; then
-    echo "freearchy binary not found on this media; starting stock bsdinstall."
+if [ ! -x /usr/local/bin/vellum ]; then
+    echo "vellum binary not found on this media; starting stock bsdinstall."
     sleep 2
     exec /usr/libexec/bsdinstall/startbsdinstall "$1"
 fi
 
-/usr/local/bin/freearchy install-system
+/usr/local/bin/vellum install-system
 rc=$?
 
 echo
-echo "freearchy install-system exited (status $rc)."
-echo "Rerun with 'freearchy install-system'; 'exit' returns to runconsoles."
+echo "vellum install-system exited (status $rc)."
+echo "Rerun with 'vellum install-system'; 'exit' returns to runconsoles."
 /bin/sh

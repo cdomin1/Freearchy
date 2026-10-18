@@ -1,4 +1,4 @@
-# Testing freearchy — Parallels (Apple Silicon)
+# Testing vellum — Parallels (Apple Silicon)
 
 The fast loop is **stock FreeBSD VM → run `boot.sh` → fix what breaks**.
 Only bake the custom image once that path is green.
@@ -6,7 +6,7 @@ Only bake the custom image once that path is green.
 Current rig: a Parallels FreeBSD 15.1 aarch64 VM, driven over SSH from macOS
 Terminal (`ssh carlos@<vm-ip>` — Parallels' console can't share the
 clipboard; new Terminal tabs land on the Mac, ssh'd tabs on the VM).
-SSH key at `~/.ssh/freearchy_vm`, `doas` configured (`permit nopass carlos`).
+SSH key at `~/.ssh/vellum_vm`, `doas` configured (`permit nopass carlos`).
 
 ## install-system test hooks
 
@@ -15,11 +15,11 @@ pipeline on a RAM disk without touching real storage:
 
 ```sh
 mdconfig -a -t malloc -s 3g          # creates e.g. md3
-FREEARCHY_DISKS='md3:RAM Test Disk' FREEARCHY_POOL=zmd3 \
-    freearchy install-system         # as root
+VELLUM_DISKS='md3:RAM Test Disk' VELLUM_POOL=zmd3 \
+    vellum install-system         # as root
 ```
 
-`FREEARCHY_POOL` also prevents colliding with a host that already imports a
+`VELLUM_POOL` also prevents colliding with a host that already imports a
 pool named `zroot` (any ZFS-rooted machine). The pipeline refuses to destroy
 a pool whose vdev isn't the selected disk.
 
@@ -46,29 +46,29 @@ Stock `bsdinstall`, with these choices:
   plan to `ssh` in from the Mac and paste `boot.sh`'s one-liner there
 - Take a UTM **snapshot** right after install, before touching anything
 
-## 3. Run freearchy
+## 3. Run vellum
 
 ```sh
 # inside the guest (or over ssh)
-fetch https://raw.githubusercontent.com/cdomin1/Freearchy/main/boot.sh -o - | sh
+fetch https://raw.githubusercontent.com/cdomin1/Vellum/main/boot.sh -o - | sh
 ```
 
 Or push the repo from a Mac checkout (COPYFILE_DISABLE avoids macOS
 `._*` AppleDouble files polluting the tree):
 
 ```sh
-cd ~/Developer && COPYFILE_DISABLE=1 tar czf - --exclude target freearchy | \
+cd ~/Developer && COPYFILE_DISABLE=1 tar czf - --exclude target vellum | \
     ssh <user>@<vm-ip> 'tar xzf -'
 ```
 
-Then inside the guest (repo already at ~/freearchy after the tar copy):
+Then inside the guest (repo already at ~/vellum after the tar copy):
 
 ```sh
 pkg install -y git-lite rust          # as root
-cargo install --path ~/freearchy/freearchy-cli --root /usr/local
-export FREEARCHY_HOME=~/freearchy     # repo isn't at the default path here
-freearchy doctor                      # baseline — expect failures
-freearchy install                     # as root; add --no-packages / --no-shell to bisect
+cargo install --path ~/vellum/vellum-cli --root /usr/local
+export VELLUM_HOME=~/vellum     # repo isn't at the default path here
+vellum doctor                      # baseline — expect failures
+vellum install                     # as root; add --no-packages / --no-shell to bisect
 ```
 
 ## 3b. Or: skip bsdinstall entirely (GUI installer)
@@ -77,9 +77,9 @@ Boot the ISO → pick **"Live CD"** → you get a root shell. Then:
 
 ```sh
 pkg bootstrap -f && pkg install -y git-lite rust
-git clone <repo> /root/freearchy
-cargo build --release --manifest-path /root/freearchy/freearchy-cli/Cargo.toml
-/root/freearchy/target/release/freearchy install-system --web
+git clone <repo> /root/vellum
+cargo build --release --manifest-path /root/vellum/vellum-cli/Cargo.toml
+/root/vellum/target/release/vellum install-system --web
 ```
 
 Then open `http://<vm-ip>:8080` **in a browser on your Mac** — the GUI renders
@@ -96,7 +96,7 @@ sysrc kld_list+=virtio_gpu     # from drm-kmod
 kldload virtio_gpu             # or reboot
 ls /dev/drm                    # want card0/renderD128 — no nodes = no Wayland
 service seatd start            # installer does this; verify anyway
-freearchy doctor
+vellum doctor
 Hyprland                       # from a getty, as your user
 ```
 
@@ -112,18 +112,18 @@ Hyprland                       # from a getty, as your user
 ## 5. What "green" looks like (checklist)
 
 - [ ] `pkg` installs all required manifests with zero failures (trim strays)
-- [ ] `freearchy doctor` — all checks ok after install
+- [ ] `vellum doctor` — all checks ok after install
 - [ ] `quickshell -c caelestia` launches (even with stubbed services)
 - [ ] Hyprland session starts; foot + launcher binds work
-- [ ] `freearchy theme set catppuccin-mocha` visibly re-themes borders/foot
+- [ ] `vellum theme set catppuccin-mocha` visibly re-themes borders/foot
 - [ ] Reboot → session still comes up clean
 
 ## 6. The installer image
 
 `image/build-image.sh` (default ARCH=amd64; the amd64 binary is built by the
 `iso` GitHub workflow on tag/dispatch) remasters the official memstick:
-`rc.local` runs `freearchy-install` per console → DHCP on all NICs →
-`freearchy install-system` TUI. Falls back to stock bsdinstall if the
+`rc.local` runs `vellum-install` per console → DHCP on all NICs →
+`vellum install-system` TUI. Falls back to stock bsdinstall if the
 binary is absent. Live env needs **ethernet** (dists + payload are fetched;
 no wifi provisioning yet).
 

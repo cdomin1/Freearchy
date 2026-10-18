@@ -1,32 +1,32 @@
 #!/bin/sh
-# PROVIDE: freearchy_firstboot
+# PROVIDE: vellum_firstboot
 # REQUIRE: NETWORKING
 # BEFORE:  LOGIN
 # KEYWORD: firstboot
 
 . /etc/rc.subr
 
-name="freearchy_firstboot"
+name="vellum_firstboot"
 rcvar="${name}_enable"
 start_cmd="${name}_start"
 
-freearchy_firstboot_start()
+vellum_firstboot_start()
 {
-    echo "freearchy: running first-boot setup"
+    echo "vellum: running first-boot setup"
     # Install bootstrap toolchain, clone repo, run installer as root —
     # it drops privileges appropriately per-step.
     /usr/sbin/pkg bootstrap -yf
     /usr/local/bin/pkg install -y git-lite rust
-    /usr/local/bin/git clone https://github.com/cdomin1/Freearchy.git \
-        /usr/local/freearchy
-    FREEARCHY_HOME=/usr/local/freearchy \
-        /usr/local/bin/cargo install --path /usr/local/freearchy/freearchy-cli \
+    /usr/local/bin/git clone https://github.com/cdomin1/Vellum.git \
+        /usr/local/vellum
+    VELLUM_HOME=/usr/local/vellum \
+        /usr/local/bin/cargo install --path /usr/local/vellum/vellum-cli \
         --root /usr/local
     # The X11 tiler + the CLI both install; the cli drives the rest.
-    FREEARCHY_HOME=/usr/local/freearchy \
-        /usr/local/bin/cargo install --path /usr/local/freearchy/freearchy-wm \
+    VELLUM_HOME=/usr/local/vellum \
+        /usr/local/bin/cargo install --path /usr/local/vellum/vellum-wm \
         --root /usr/local || true
-    /usr/local/bin/freearchy install --dev || true
+    /usr/local/bin/vellum install --dev || true
 
     # One-shot: don't run again.
     sysrc -x "${rcvar}"

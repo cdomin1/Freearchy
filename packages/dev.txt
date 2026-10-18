@@ -1,4 +1,4 @@
-# Development tooling. `rust` is required to build freearchy-cli + quickshell.
+# Development tooling. `rust` is required to build vellum-cli + quickshell.
 
 rust
 cmake

@@ -1,6 +1,6 @@
-// Freearchy rofi — colors come from the active theme symlink:
-//   ~/.config/freearchy/current/theme/rofi.rasi
-@import "~/.config/freearchy/current/theme/rofi.rasi"
+// Vellum rofi — colors come from the active theme symlink:
+//   ~/.config/vellum/current/theme/rofi.rasi
+@import "~/.config/vellum/current/theme/rofi.rasi"
 
 configuration {
     font: "monospace 12";

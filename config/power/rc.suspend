@@ -1,5 +1,5 @@
 #!/bin/sh
-# Freearchy /etc/rc.suspend — runs as root before the kernel sleeps.
+# Vellum /etc/rc.suspend — runs as root before the kernel sleeps.
 # (acpiconf -s N / zzz / lid close all funnel through this.)
 
 # Lock the X session before we go down — resuming to an unlocked

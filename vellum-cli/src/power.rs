@@ -1,4 +1,4 @@
-//! `freearchy power` — inspect and set the machine's power profile.
+//! `vellum power` — inspect and set the machine's power profile.
 //! Thin Rust front-end over the same knobs the devd hook script uses:
 //! HWP EPP hints, wifi powersave, CPU freq + battery readouts.
 
@@ -27,7 +27,7 @@ fn acpi_call(call: &str) -> Result<()> {
 /// encoding: arg = percent | battery<<8 against HKEY.BCCS/BCSS).
 pub fn battery(start: Option<u8>, stop: Option<u8>) -> Result<()> {
     if start.is_none() && stop.is_none() {
-        bail!("usage: freearchy power battery --start <pct> --stop <pct>");
+        bail!("usage: vellum power battery --start <pct> --stop <pct>");
     }
     let _ = util::capture("kldload", &["acpi_call"]); // no-op if loaded/absent
     // EC path varies by model: LPC on most, LPCB on newer (S2, 13g2…)

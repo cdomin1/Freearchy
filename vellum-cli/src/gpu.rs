@@ -101,7 +101,7 @@ pub fn xorg_driver() -> &'static str {
     }
 }
 
-/// /usr/local/etc/X11/xorg.conf.d/20-freearchy.conf — pin the DDX driver
+/// /usr/local/etc/X11/xorg.conf.d/20-vellum.conf — pin the DDX driver
 /// so Xorg doesn't guess wrong on hybrid hardware. The dGPU is left for
 /// PRIME render offload (see /usr/local/bin/prime-run).
 pub fn write_xorg_conf(root: &str) {
@@ -110,10 +110,10 @@ pub fn write_xorg_conf(root: &str) {
         return;
     }
     let _ = fs::write(
-        format!("{dir}/20-freearchy.conf"),
+        format!("{dir}/20-vellum.conf"),
         format!(
-            "# Freearchy GPU pin — {} detected\n\
-             Section \"Device\"\n    Identifier \"freearchy-gpu\"\n    Driver \"{}\"\nEndSection\n",
+            "# Vellum GPU pin — {} detected\n\
+             Section \"Device\"\n    Identifier \"vellum-gpu\"\n    Driver \"{}\"\nEndSection\n",
             if is_hybrid() { "hybrid graphics (iGPU drives the session)" } else { "single GPU" },
             xorg_driver()
         ),

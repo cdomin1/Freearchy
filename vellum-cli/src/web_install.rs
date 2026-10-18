@@ -1,4 +1,4 @@
-//! `freearchy install-system --web` — browser-based installer.
+//! `vellum install-system --web` — browser-based installer.
 //!
 //! Runs a tiny HTTP server on the live system; the GUI is a page opened in
 //! any browser pointed at http://<host>:<port>. On a VM this means the
@@ -17,7 +17,7 @@ use crate::install_system::{self, InstallSpec};
 use crate::util;
 
 const PAGE: &str = include_str!("../web/installer.html");
-const LOGO: &[u8] = include_bytes!("../assets/logo.png");
+const LOGO: &str = include_str!("../../branding/vellum-logo.svg");
 
 struct Shared {
     lines: Mutex<Vec<String>>,
@@ -61,7 +61,7 @@ pub fn serve(port: u16) -> Result<()> {
         running: AtomicBool::new(false),
     });
 
-    println!("freearchy installer UI listening on :{port}");
+    println!("vellum installer UI listening on :{port}");
     println!("open http://<this-machine>:{port} in a browser");
 
     for request in server.incoming_requests() {
@@ -78,7 +78,7 @@ fn handle(request: tiny_http::Request, shared: &Arc<Shared>) -> Result<()> {
 
     match (request.method(), path) {
         (Method::Get, "/") => respond(request, PAGE, "text/html; charset=utf-8"),
-        (Method::Get, "/logo.png") => respond_bytes(request, LOGO, "image/png"),
+        (Method::Get, "/logo.svg") => respond_bytes(request, LOGO.as_bytes(), "image/svg+xml"),
         (Method::Get, "/api/disks") => api_disks(request),
         (Method::Post, "/api/install") => api_install(request, shared),
         (Method::Get, "/api/log") => api_log(request, shared, &url),

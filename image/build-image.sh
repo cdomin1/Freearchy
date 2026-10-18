@@ -1,13 +1,13 @@
 #!/bin/sh
-# Build a bootable Freearchy installer image.
+# Build a bootable Vellum installer image.
 #
 # Fetches the official FreeBSD memstick .img, attaches it via md(4), then
 # injects:
-#   - /usr/local/bin/freearchy          prebuilt CLI (if FREEARCHY_BIN set)
-#   - /usr/local/bin/freearchy-install  console launcher (replaces bsdinstall)
+#   - /usr/local/bin/vellum          prebuilt CLI (if VELLUM_BIN set)
+#   - /usr/local/bin/vellum-install  console launcher (replaces bsdinstall)
 #   - patched /etc/rc.local             runs our launcher via runconsoles
 #
-# Boot flow: rc.local → runconsoles → freearchy-install → freearchy
+# Boot flow: rc.local → runconsoles → vellum-install → vellum
 # install-system (the ratatui wizard). If the binary is absent the launcher
 # falls back to stock bsdinstall.
 #
@@ -16,7 +16,7 @@ set -eu
 
 RELEASE="${1:-15.1}"
 ARCH="${ARCH:-amd64}"
-FREEARCHY_BIN="${FREEARCHY_BIN:-}"
+VELLUM_BIN="${VELLUM_BIN:-}"
 
 case "$ARCH" in
     amd64)   IMG="FreeBSD-${RELEASE}-RELEASE-amd64-memstick.img" ;;
@@ -24,7 +24,7 @@ case "$ARCH" in
     *)       echo "unsupported ARCH: $ARCH" >&2; exit 1 ;;
 esac
 BASE_URL="https://download.freebsd.org/releases/ISO-IMAGES/${RELEASE}"
-WORK="$(mktemp -d /tmp/freearchy-image.XXXXXX)"
+WORK="$(mktemp -d /tmp/vellum-image.XXXXXX)"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 
 cleanup() {
@@ -54,23 +54,23 @@ fi
 [ -n "$UFS_PART" ] || { echo "!! no freebsd-ufs partition on $MD" >&2; exit 1; }
 mount -o rw "/dev/$UFS_PART" "$WORK/mnt"
 
-echo "==> Injecting freearchy launcher"
+echo "==> Injecting vellum launcher"
 mkdir -p "$WORK/mnt/usr/local/bin"
-cp "$REPO/image/freearchy-install" "$WORK/mnt/usr/local/bin/freearchy-install"
-chmod 755 "$WORK/mnt/usr/local/bin/freearchy-install"
+cp "$REPO/image/vellum-install" "$WORK/mnt/usr/local/bin/vellum-install"
+chmod 755 "$WORK/mnt/usr/local/bin/vellum-install"
 
-if [ -n "$FREEARCHY_BIN" ] && [ -f "$FREEARCHY_BIN" ]; then
-    echo "==> Embedding freearchy binary ($FREEARCHY_BIN)"
-    cp "$FREEARCHY_BIN" "$WORK/mnt/usr/local/bin/freearchy"
-    chmod 755 "$WORK/mnt/usr/local/bin/freearchy"
+if [ -n "$VELLUM_BIN" ] && [ -f "$VELLUM_BIN" ]; then
+    echo "==> Embedding vellum binary ($VELLUM_BIN)"
+    cp "$VELLUM_BIN" "$WORK/mnt/usr/local/bin/vellum"
+    chmod 755 "$WORK/mnt/usr/local/bin/vellum"
 else
-    echo "!! FREEARCHY_BIN unset — image will fall back to stock bsdinstall"
+    echo "!! VELLUM_BIN unset — image will fall back to stock bsdinstall"
 fi
 
-echo "==> Pointing rc.local at the freearchy installer"
-sed -i '' 's|/usr/libexec/bsdinstall/startbsdinstall|/usr/local/bin/freearchy-install|g' \
+echo "==> Pointing rc.local at the vellum installer"
+sed -i '' 's|/usr/libexec/bsdinstall/startbsdinstall|/usr/local/bin/vellum-install|g' \
     "$WORK/mnt/etc/rc.local"
-grep -q freearchy-install "$WORK/mnt/etc/rc.local" \
+grep -q vellum-install "$WORK/mnt/etc/rc.local" \
     || { echo "!! rc.local patch did not apply" >&2; exit 1; }
 
 sync

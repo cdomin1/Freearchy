@@ -1,7 +1,7 @@
 #!/bin/sh
-# freearchy-power — apply a power profile on FreeBSD.
-#   freearchy-power performance|balanced|power|ac|status
-# Called by devd on AC plug/unplug and by `freearchy power set`.
+# vellum-power — apply a power profile on FreeBSD.
+#   vellum-power performance|balanced|power|ac|status
+# Called by devd on AC plug/unplug and by `vellum power set`.
 set -u
 
 EPP_MIBS="dev.hwpstate_intel.0.epp dev.hwpstate_amd.0.epp"
@@ -40,5 +40,5 @@ case "${1:-status}" in
         done
         acpiconf -i0 2>/dev/null | awk '/Remaining capacity|Present rate|State:/ {sub(/^ */,""); print "bat:    " $0}'
         ;;
-    *) echo "usage: freearchy-power performance|balanced|power|ac|status" >&2; exit 1 ;;
+    *) echo "usage: vellum-power performance|balanced|power|ac|status" >&2; exit 1 ;;
 esac

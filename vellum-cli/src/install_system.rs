@@ -1,7 +1,7 @@
-//! `freearchy install-system` — our own installer, the Omarchy-ISO analogue.
+//! `vellum install-system` — our own installer, the Omarchy-ISO analogue.
 //!
 //! Runs on a live FreeBSD system (stock ISO "Live CD" shell, or our future
-//! custom media): partition a disk, lay down ZFS + base system + freearchy,
+//! custom media): partition a disk, lay down ZFS + base system + vellum,
 //! reboot into a working desktop.
 //!
 //! Interactive wizard via ratatui (install_tui.rs); the pipeline functions
@@ -17,13 +17,13 @@ use crate::util;
 
 const MNT: &str = "/mnt";
 
-/// zroot is the live-ISO default; FREEARCHY_POOL overrides it for tests and
+/// zroot is the live-ISO default; VELLUM_POOL overrides it for tests and
 //  hosts that already import a pool named zroot.
 fn pool() -> String {
-    std::env::var("FREEARCHY_POOL").unwrap_or_else(|_| "zroot".into())
+    std::env::var("VELLUM_POOL").unwrap_or_else(|_| "zroot".into())
 }
 const REPO_TARBALL: &str =
-    "https://github.com/cdomin1/Freearchy/archive/refs/heads/main.tar.gz";
+    "https://github.com/cdomin1/Vellum/archive/refs/heads/main.tar.gz";
 
 /// Fully-specified install request — produced by the TUI wizard, CLI flags,
 /// or the web installer. `execute` runs the same pipeline for all of them.
@@ -67,11 +67,11 @@ pub fn run(
         }
         disks[0].0.clone()
     });
-    let hostname = hostname.unwrap_or_else(|| "freearchy".into());
-    let username = username.unwrap_or_else(|| "freearchy".into());
+    let hostname = hostname.unwrap_or_else(|| "vellum".into());
+    let username = username.unwrap_or_else(|| "vellum".into());
 
     if !yes {
-        print!("Install FreeBSD + freearchy onto /dev/{disk}? ALL DATA ERASED [y/N] ");
+        print!("Install FreeBSD + vellum onto /dev/{disk}? ALL DATA ERASED [y/N] ");
         std::io::stdout().flush()?;
         let mut a = String::new();
         std::io::stdin().read_line(&mut a)?;
@@ -102,7 +102,7 @@ pub fn execute(spec: &InstallSpec, log: &dyn Fn(&str)) -> Result<()> {
     boot_loader(&dev, log)?;
     system_files(spec)?;
     create_user(spec, log)?;
-    install_freearchy(log)?;
+    install_vellum(log)?;
     datasets.teardown()?;
     log("Install complete. Remove the media and reboot.");
     Ok(())
@@ -120,8 +120,8 @@ fn ensure_root() -> Result<()> {
 /// Candidate install targets as (device name, display label),
 /// minus the disk backing / and removable pseudo-devices.
 pub(crate) fn disks() -> Result<Vec<(String, String)>> {
-    // Test hook: FREEARCHY_DISKS="md1:Fake Disk;md2:Other" overrides discovery.
-    if let Ok(fake) = std::env::var("FREEARCHY_DISKS") {
+    // Test hook: VELLUM_DISKS="md1:Fake Disk;md2:Other" overrides discovery.
+    if let Ok(fake) = std::env::var("VELLUM_DISKS") {
         return Ok(fake
             .split(';')
             .filter_map(|e| {
@@ -238,7 +238,7 @@ fn zfs_layout(dev: &str, log: &dyn Fn(&str)) -> Result<PoolGuard> {
         if pool_on_dev(&p, dev) {
             let _ = util::run("zpool", &["destroy", "-f", &p]);
         } else {
-            bail!("pool '{p}' is already imported on another disk — export it first or set FREEARCHY_POOL");
+            bail!("pool '{p}' is already imported on another disk — export it first or set VELLUM_POOL");
         }
     }
     util::run("zpool", &[
@@ -372,7 +372,7 @@ fn system_files(spec: &InstallSpec) -> Result<()> {
         format!(
             "hostname=\"{}\"\nzfs_enable=\"YES\"\nsshd_enable=\"YES\"\n\
              keymap=\"{}\"\nifconfig_DEFAULT=\"SYNCDHCP\"\n\
-             freearchy_firstboot_enable=\"YES\"\npowerdxx_enable=\"YES\"\n{}",
+             vellum_firstboot_enable=\"YES\"\npowerdxx_enable=\"YES\"\n{}",
             spec.hostname, spec.keymap, kld
         ),
     )?;
@@ -415,7 +415,7 @@ fn sleep_setup() {
     let _ = fs::write(
         format!("{MNT}/etc/sysctl.conf"),
         format!(
-            "# Freearchy suspend config\n\
+            "# Vellum suspend config\n\
              hw.acpi.lid_switch_state={state}\n\
              hw.acpi.sleep_button_state={state}\n\
              hw.acpi.power_button_state=S5\n"
@@ -434,23 +434,23 @@ fn sleep_setup() {
     let _ = fs::create_dir_all(format!("{MNT}/usr/local/libexec"));
     let _ = fs::create_dir_all(format!("{MNT}/usr/local/etc/devd"));
     let _ = fs::write(
-        format!("{MNT}/usr/local/libexec/freearchy-power"),
-        include_str!("../../config/power/freearchy-power"),
+        format!("{MNT}/usr/local/libexec/vellum-power"),
+        include_str!("../../config/power/vellum-power"),
     );
     use std::os::unix::fs::PermissionsExt;
     let _ = fs::set_permissions(
-        format!("{MNT}/usr/local/libexec/freearchy-power"),
+        format!("{MNT}/usr/local/libexec/vellum-power"),
         fs::Permissions::from_mode(0o755),
     );
     let _ = fs::write(
-        format!("{MNT}/usr/local/etc/devd/freearchy-power.conf"),
+        format!("{MNT}/usr/local/etc/devd/vellum-power.conf"),
         include_str!("../../config/power/devd.conf"),
     );
 }
 
 fn create_user(spec: &InstallSpec, log: &dyn Fn(&str)) -> Result<()> {
     let username = &spec.username;
-    let gecos = spec.fullname.as_deref().unwrap_or("freearchy user");
+    let gecos = spec.fullname.as_deref().unwrap_or("vellum user");
     log(&format!("Creating user {username}"));
     util::run("chroot", &[
         MNT, "pw", "useradd", "-n", username, "-m", "-s", "/bin/sh",
@@ -484,20 +484,20 @@ fn run_stdin(cmd: &str, args: &[&str], input: &str) -> Result<()> {
     Ok(())
 }
 
-/// Deliver the freearchy repo + firstboot hook into the installed system.
-fn install_freearchy(log: &dyn Fn(&str)) -> Result<()> {
-    log("Installing freearchy payload");
-    let dst = format!("{MNT}/usr/local/freearchy");
+/// Deliver the vellum repo + firstboot hook into the installed system.
+fn install_vellum(log: &dyn Fn(&str)) -> Result<()> {
+    log("Installing vellum payload");
+    let dst = format!("{MNT}/usr/local/vellum");
     let local = util::repo_root().unwrap_or_default();
 
     if local.join("boot.sh").exists() {
         // Installer built from a checkout — copy it in.
         util::run("cp", &["-R", local.to_str().unwrap(), &dst])?;
     } else {
-        util::run("fetch", &["-o", "/tmp/freearchy.tar.gz", REPO_TARBALL])?;
-        util::run("tar", &["-xzf", "/tmp/freearchy.tar.gz", "-C", "/tmp"])?;
+        util::run("fetch", &["-o", "/tmp/vellum.tar.gz", REPO_TARBALL])?;
+        util::run("tar", &["-xzf", "/tmp/vellum.tar.gz", "-C", "/tmp"])?;
         // GitHub tarballs extract to <name>-main/
-        for cand in ["/tmp/freearchy-main", "/tmp/freearchy-freebsd"] {
+        for cand in ["/tmp/vellum-main", "/tmp/vellum-freebsd"] {
             if Path::new(cand).is_dir() {
                 util::run("mv", &[cand, &dst])?;
                 break;
@@ -506,14 +506,14 @@ fn install_freearchy(log: &dyn Fn(&str)) -> Result<()> {
     }
 
     // Firstboot service (from the repo we just placed).
-    let rc_src = format!("{dst}/image/freearchy-firstboot");
+    let rc_src = format!("{dst}/image/vellum-firstboot");
     let rc_dst = format!("{MNT}/usr/local/etc/rc.d");
     fs::create_dir_all(&rc_dst)?;
     if Path::new(&rc_src).exists() {
-        fs::copy(&rc_src, format!("{rc_dst}/freearchy-firstboot"))?;
-        util::run("chmod", &["+x", &format!("{rc_dst}/freearchy-firstboot")])?;
+        fs::copy(&rc_src, format!("{rc_dst}/vellum-firstboot"))?;
+        util::run("chmod", &["+x", &format!("{rc_dst}/vellum-firstboot")])?;
     } else {
-        log("warn: no freearchy-firstboot in payload — skipping autostart");
+        log("warn: no vellum-firstboot in payload — skipping autostart");
     }
     Ok(())
 }

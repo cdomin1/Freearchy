@@ -1,6 +1,6 @@
-# Freearchy alacritty — colors come from the active theme symlink:
-#   ~/.config/freearchy/current/theme/alacritty.toml
-import = ["~/.config/freearchy/current/theme/alacritty.toml"]
+# Vellum alacritty — colors come from the active theme symlink:
+#   ~/.config/vellum/current/theme/alacritty.toml
+import = ["~/.config/vellum/current/theme/alacritty.toml"]
 
 [window]
 padding = { x = 10, y = 10 }

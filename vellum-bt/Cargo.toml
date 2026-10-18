@@ -1,5 +1,5 @@
 [package]
-name = "freearchy-bt"
+name = "vellum-bt"
 version = "0.1.0"
 edition = "2021"
 description = "BlueZ-compatible D-Bus daemon for FreeBSD (org.bluez over native HCI sockets)"

@@ -1,4 +1,4 @@
-//! Ratatui wizard for `freearchy install-system` — the Omarchy-style
+//! Ratatui wizard for `vellum install-system` — the Omarchy-style
 //! installer UI. Drives an InstallSpec out of keyboard/user/disk/confirm
 //! screens, streams the pipeline log, then offers reboot.
 
@@ -21,13 +21,13 @@ const BLUE: Color = Color::Indexed(111);
 const DIM: Color = Color::Indexed(240);
 const FG: Color = Color::Indexed(255);
 
-/// Pixel-style banner matching branding/logo.png.
+/// Pixel-style banner matching branding/vellum-logo.svg.
 const LOGO: [&str; 5] = [
-    "███████ ██████  ███████  ████   ██████  ██████ ██  ██ ██   ██",
-    "██      ██   ██ ██      ██  ██ ██    ██ ██     ██  ██  ██ ██ ",
-    "█████   ██████  █████   ██████ ██    ██ ██     ██████   ███  ",
-    "██      ██   ██ ██      ██  ██ ██    ██ ██     ██  ██    ██  ",
-    "██      ██   ██ ███████ ██  ██  ██████  ██     ██  ██    ██  ",
+    "██   ██ ███████ ██      ██      ██   ██ ███   ███",
+    "██   ██ ██      ██      ██      ██   ██ ████ ████",
+    " ██ ██  █████   ██      ██      ██   ██ ██ ███ ██",
+    " ██ ██  ██      ██      ██      ██   ██ ██  █  ██",
+    "  ███   ███████ ███████ ███████  █████  ██     ██",
 ];
 
 const KEYMAPS: [(&str, &str); 14] = [
@@ -131,7 +131,7 @@ fn wizard_loop(term: &mut DefaultTerminal) -> Result<()> {
         password: String::new(),
         confirm: String::new(),
         email: String::new(),
-        hostname: "freearchy".into(),
+        hostname: "vellum".into(),
         keymap: ListState::default().with_selected(Some(0)),
         disk_list: ListState::default().with_selected(Some(0)),
         disks: disk_list,
@@ -333,8 +333,8 @@ fn draw(f: &mut Frame, w: &mut Wizard) {
         Screen::Username | Screen::FullName | Screen::Password
         | Screen::ConfirmPass | Screen::Email => "Let's setup your user account...",
         Screen::Hostname => "Name your machine...",
-        Screen::Disk | Screen::ConfirmErase => "Let's select where to install Freearchy...",
-        Screen::Installing => "Installing Freearchy...",
+        Screen::Disk | Screen::ConfirmErase => "Let's select where to install Vellum...",
+        Screen::Installing => "Installing Vellum...",
         Screen::Done => "",
         Screen::Failed => "Install failed.",
     };

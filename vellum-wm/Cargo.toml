@@ -1,8 +1,8 @@
 [package]
-name = "freearchy-wm"
+name = "vellum-wm"
 version = "0.1.0"
 edition = "2021"
-description = "Freearchy X11 tiling window manager (penrose-based)"
+description = "Vellum X11 tiling window manager (penrose-based)"
 license = "MIT"
 
 [dependencies]

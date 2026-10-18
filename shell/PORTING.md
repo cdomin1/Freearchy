@@ -5,7 +5,7 @@ helper (`caelestia-cli`). Upstream targets Hyprland only — which is exactly wh
 we run — so **the only real porting work is replacing Linux-specific system
 services**. Strategy:
 
-- Fork `caelestia-dots/shell` → `freearchy-shell`, branch `freebsd`
+- Fork `caelestia-dots/shell` → `vellum-shell`, branch `freebsd`
 - Fork `caelestia-dots/caelestia` (the installer/dots) for its hyprland config
 - Keep changes minimal and behind runtime detection where possible so we can
   keep merging upstream
@@ -48,13 +48,13 @@ services**. Strategy:
 5. **Battery** — `hw.acpi.battery.*` sysctls (Caelestia probably uses UPower — check;
    `sysutils/upower` exists on FreeBSD and may just work).
 
-## Build steps for the installer (`freearchy install`)
+## Build steps for the installer (`vellum install`)
 
 Handled by `shell/build-shell.sh`:
 
 1. `pkg install` everything in `packages/shell.txt` (includes `quickshell`)
 2. Optionally rebuild quickshell from git (`QS_GIT=1`) if caelestia requires it
-3. Clone `freearchy-shell` to `~/.config/quickshell/caelestia`, build its C++ plugin
+3. Clone `vellum-shell` to `~/.config/quickshell/caelestia`, build its C++ plugin
 4. Build qt6-m3shapes; install into Qt6's qml import path
 5. Build libcava (visualizer) — or skip with `SKIP_CAVA=1`
 6. Install `caelestia-cli`

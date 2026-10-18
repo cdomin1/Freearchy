@@ -1,4 +1,4 @@
-# bsdinstall auto-install script for freearchy.
+# bsdinstall auto-install script for vellum.
 # Docs: bsdinstall(8) — variables are consumed by the installer,
 # the script body at the bottom runs chrooted into the new system.
 
@@ -10,7 +10,7 @@ DISTRIBUTIONS="kernel.txz base.txz lib32.txz"
 export nonInteractive="YES"
 
 KEYMAP="us.keymap"
-HOSTNAME="freearchy"
+HOSTNAME="vellum"
 
 #!/bin/sh
 # --- post-install, chrooted into the target system ---
@@ -19,5 +19,5 @@ HOSTNAME="freearchy"
 sysrc ifconfig_DEFAULT="DHCP"
 sysrc sshd_enable="YES"
 
-# Freearchy first boot: run the bootstrap, then remove itself.
-sysrc freearchy_firstboot_enable="YES"
+# Vellum first boot: run the bootstrap, then remove itself.
+sysrc vellum_firstboot_enable="YES"

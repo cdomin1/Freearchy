@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>freearchy installer</title>
+<title>vellum installer</title>
 <style>
   :root {
     --bg: #1a1b26; --bg2: #24283b; --fg: #c0caf5; --dim: #565f89;
@@ -57,8 +57,8 @@
 </head>
 <body>
 <main>
-  <img class="logo" src="/logo.png" alt="freearchy">
-  <div class="sub">FreeBSD 15.x · ZFS root · Hyprland + Caelestia</div>
+  <img class="logo" src="/logo.svg" alt="vellum">
+  <div class="sub">FreeBSD 15.x · ZFS root · vellum-wm (X11)</div>
 
   <form id="form">
     <fieldset>
@@ -68,7 +68,7 @@
 
     <fieldset>
       <legend>System</legend>
-      <input type="text" name="hostname" placeholder="hostname" value="freearchy" required>
+      <input type="text" name="hostname" placeholder="hostname" value="vellum" required>
       <input type="text" name="username" placeholder="username" required>
       <input type="password" name="password" placeholder="password (optional)">
     </fieldset>
@@ -100,7 +100,7 @@ form.addEventListener('submit', async e => {
   e.preventDefault();
   if (installing) return;
   const fd = new FormData(form);
-  if (!confirm(`Erase ${fd.get('disk')} and install freearchy?`)) return;
+  if (!confirm(`Erase ${fd.get('disk')} and install vellum?`)) return;
   installing = true;
   form.style.display = 'none';
   logEl.style.display = 'block';

@@ -1,4 +1,4 @@
-# X11 session stack for freearchy-wm (shelved Wayland path is in hyprland.txt)
+# X11 session stack for vellum-wm (shelved Wayland path is in hyprland.txt)
 xorg-server
 xinit
 xauth

@@ -50,21 +50,21 @@ pub fn run(no_packages: bool, dev: bool, no_shell: bool) -> Result<()> {
         }
     }
 
-    println!("\nfreearchy installed.");
-    println!("  X11 session (default): run `startx`  → freearchy-wm");
+    println!("\nvellum installed.");
+    println!("  X11 session (default): run `startx`  → vellum-wm");
     println!("  Wayland (shelved):     run `Hyprland` → Caelestia shell");
-    println!("Run `freearchy doctor` to verify.");
+    println!("Run `vellum doctor` to verify.");
     Ok(())
 }
 
-/// Build + install freearchy-wm (the X11 tiler) from this workspace.
+/// Build + install vellum-wm (the X11 tiler) from this workspace.
 fn install_wm(repo: &Path) -> Result<()> {
-    println!("==> Building freearchy-wm");
+    println!("==> Building vellum-wm");
     if !util::on_path("cargo") {
-        eprintln!("    warn: cargo not on PATH — skipping freearchy-wm build");
+        eprintln!("    warn: cargo not on PATH — skipping vellum-wm build");
         return Ok(());
     }
-    let path = repo.join("freearchy-wm");
+    let path = repo.join("vellum-wm");
     util::run("cargo", &[
         "install", "--path", &path.to_string_lossy(), "--root", "/usr/local",
     ])?;
@@ -90,7 +90,7 @@ fn install_picom(repo: &Path) -> Result<()> {
 pub fn update() -> Result<()> {
     let repo = util::repo_root()?;
     link_configs(&repo)?;
-    println!("freearchy updated.");
+    println!("vellum updated.");
     Ok(())
 }
 
@@ -182,13 +182,13 @@ fn power_setup(repo: &Path) -> Result<()> {
 
     // profile script + devd AC hook + adaptive CPU freq daemon
     fs::create_dir_all("/usr/local/libexec")?;
-    fs::copy(repo.join("config/power/freearchy-power"), "/usr/local/libexec/freearchy-power")?;
-    fs::set_permissions("/usr/local/libexec/freearchy-power", fs::Permissions::from_mode(0o755))?;
+    fs::copy(repo.join("config/power/vellum-power"), "/usr/local/libexec/vellum-power")?;
+    fs::set_permissions("/usr/local/libexec/vellum-power", fs::Permissions::from_mode(0o755))?;
     fs::create_dir_all("/usr/local/etc/devd")?;
-    fs::copy(repo.join("config/power/devd.conf"), "/usr/local/etc/devd/freearchy-power.conf")?;
+    fs::copy(repo.join("config/power/devd.conf"), "/usr/local/etc/devd/vellum-power.conf")?;
     util::run("sysrc", &["powerdxx_enable=YES"])?;
     let _ = util::run("service", &["powerdxx", "start"]);
-    let _ = util::run("/usr/local/libexec/freearchy-power", &["ac"]);
+    let _ = util::run("/usr/local/libexec/vellum-power", &["ac"]);
 
     // driverless PCI devices → D3 (the knob that exists; FreeBSD has no
     // Linux-style ASPM policy manager)
@@ -224,7 +224,7 @@ fn link_configs(repo: &Path) -> Result<()> {
     let pairs = [
         (repo.join("config/hyprland"), cfg.join("hypr")),
         (repo.join("config/foot"), cfg.join("foot")),
-        (repo.join("config/x11"), cfg.join("freearchy/x11")),
+        (repo.join("config/x11"), cfg.join("vellum/x11")),
         (repo.join("config/x11/rofi"), cfg.join("rofi")),
         (repo.join("config/x11/alacritty"), cfg.join("alacritty")),
         (repo.join("config/x11/polybar"), cfg.join("polybar")),
@@ -234,7 +234,7 @@ fn link_configs(repo: &Path) -> Result<()> {
     }
     // startx entry point
     let home = util::home()?;
-    link(&cfg.join("freearchy/x11/xinitrc"), &home.join(".xinitrc"))?;
+    link(&cfg.join("vellum/x11/xinitrc"), &home.join(".xinitrc"))?;
     Ok(())
 }
 

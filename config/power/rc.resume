@@ -1,5 +1,5 @@
 #!/bin/sh
-# Freearchy /etc/rc.resume — runs as root right after the kernel wakes.
+# Vellum /etc/rc.resume — runs as root right after the kernel wakes.
 # Devices routinely come back half-dead; bounce the usual suspects.
 
 # Wi-Fi (iwlwifi/rtw8x under linuxkpi) loses association across sleep —

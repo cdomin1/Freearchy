@@ -1,5 +1,5 @@
 [package]
-name = "freearchy"
+name = "vellum"
 version = "0.1.0"
 edition = "2021"
 description = "Opinionated Hyprland + Caelestia desktop installer for FreeBSD"

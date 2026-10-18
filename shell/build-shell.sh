@@ -1,7 +1,7 @@
 #!/bin/sh
 # Build/install the Caelestia shell on FreeBSD.
 #
-# Runs as part of `freearchy install` (or standalone: sh build-shell.sh).
+# Runs as part of `vellum install` (or standalone: sh build-shell.sh).
 # POSIX sh only. Everything overridable via env — see below.
 set -eu
 
@@ -11,14 +11,14 @@ SHELL_BRANCH="${SHELL_BRANCH:-}"      # set to 'freebsd' once our fork exists
 QS_GIT="${QS_GIT:-0}"                 # 1 = build quickshell from git instead of pkg
 SKIP_CAVA="${SKIP_CAVA:-0}"           # 1 = skip libcava build (hides visualizer)
 QS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell"
-BUILD_DIR="${BUILD_DIR:-/tmp/freearchy-shell-build}"
+BUILD_DIR="${BUILD_DIR:-/tmp/vellum-shell-build}"
 FONTS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 
 log() { printf '\033[1m==> %s\033[0m\n' "$*"; }
 
-# Runs under `freearchy install` (root) or standalone (needs doas for pkg/make install)
+# Runs under `vellum install` (root) or standalone (needs doas for pkg/make install)
 SUDO=""
 if [ "$(id -u)" != "0" ] && command -v doas >/dev/null 2>&1; then
     SUDO=doas

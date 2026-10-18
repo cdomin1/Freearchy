@@ -15,7 +15,7 @@ mod web_install;
 
 #[derive(Parser)]
 #[command(
-    name = "freearchy",
+    name = "vellum",
     version,
     about = "Opinionated Hyprland + Caelestia desktop for FreeBSD"
 )]
@@ -26,7 +26,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Install freearchy onto a FreeBSD system
+    /// Install vellum onto a FreeBSD system
     Install {
         /// Write configs only, skip pkg installation
         #[arg(long)]
@@ -45,7 +45,7 @@ enum Command {
         #[command(subcommand)]
         command: ThemeCommand,
     },
-    /// Install FreeBSD + freearchy onto a disk (runs on the live installer
+    /// Install FreeBSD + vellum onto a disk (runs on the live installer
     /// image). Interactive wizard by default; fully flag-driven with --yes.
     InstallSystem {
         /// Target disk, e.g. nda0 or da0. Prompted if omitted.
@@ -109,7 +109,7 @@ enum PowerCommand {
 
 #[derive(Subcommand)]
 enum ImageCommand {
-    /// Build a bootable FreeBSD installer image with freearchy baked in
+    /// Build a bootable FreeBSD installer image with vellum baked in
     Build {
         /// FreeBSD release to base on, e.g. 15.1
         #[arg(long, default_value = "15.1")]
