@@ -34,6 +34,8 @@ const CHECKS: &[Check] = &[
     Check { name: "theme active", run: theme_active },
     Check { name: "hyprland config linked (wayland shelf)", run: hypr_config },
     Check { name: "suspend support", run: sleep_state },
+    Check { name: "suspend hooks installed", run: suspend_hooks },
+    Check { name: "bluetooth", run: bt_state },
     Check { name: "apple hardware", run: apple_hardware },
 ];
 
@@ -72,48 +74,64 @@ fn service(name: &str) -> CheckResult {
     CheckResult::Fail(format!("{name} not running"))
 }
 
+/// One line per adapter: driver bound or why not, plus the hybrid roles.
 fn gpu_state() -> CheckResult {
-    let gpus = crate::gpu::detect();
+    use crate::gpu::{self, Vendor};
+    let gpus = gpu::detect();
     if gpus.is_empty() {
-        return CheckResult::Warn("no known GPU (virt/framebuffer?)".into());
+        return CheckResult::Warn("no display adapter found by pciconf".into());
     }
-    let names: Vec<&str> = gpus.iter().map(|g| g.label()).collect();
-    // warn if the expected kmod for the detected vendor isn't loaded
-    let loaded = util::capture("kldstat", &[]).unwrap_or_default();
-    let missing: Vec<&str> = gpus
+    let loaded = util::capture("kldstat", &["-v"]).unwrap_or_default();
+    let primary = gpu::primary(&gpus).cloned();
+    let offload: Vec<gpu::Gpu> = gpu::offload(&gpus).into_iter().cloned().collect();
+    let mut problems = 0;
+    let lines: Vec<String> = gpus
         .iter()
-        .filter_map(|g| match g {
-            crate::gpu::Gpu::Intel if !loaded.contains("i915kms") => Some("i915kms"),
-            crate::gpu::Gpu::Amd if !loaded.contains("amdgpu") => Some("amdgpu"),
-            crate::gpu::Gpu::Nvidia if !loaded.contains("nvidia") => Some("nvidia"),
-            _ => None,
+        .map(|g| {
+            let role = if Some(g) == primary.as_ref() {
+                " (session)"
+            } else if offload.contains(g) {
+                " (offload: prime-run)"
+            } else {
+                ""
+            };
+            let state = match g.vendor {
+                Vendor::Virtual => "VM display — scfb, no KMS needed".to_string(),
+                Vendor::Other => "unknown vendor — scfb".to_string(),
+                // the proprietary driver doesn't register under hw.dri
+                Vendor::Nvidia if loaded.contains("nvidia") => "nvidia loaded".to_string(),
+                _ => match gpu::attached_driver(g) {
+                    Some(d) => format!("{d} attached"),
+                    None => {
+                        problems += 1;
+                        let hint = match g.vendor {
+                            Vendor::Intel => " (xe-only chip like Lunar Lake/Battlemage? drm-kmod has no xe)",
+                            Vendor::Amd => " (try `kldload radeonkms` for SI/CIK cards)",
+                            _ => "",
+                        };
+                        format!("no driver attached — X uses scfb{hint}")
+                    }
+                },
+            };
+            format!("\n         {}{role}: {state}", g.label())
         })
         .collect();
-    if missing.is_empty() {
-        let hybrid = if crate::gpu::is_hybrid() {
-            " — hybrid: desktop on iGPU, offload via prime-run"
-        } else {
-            ""
-        };
-        CheckResult::Ok(format!("{}{hybrid}", names.join(", ")))
-    } else {
-        CheckResult::Warn(format!(
-            "{} — kmod not loaded: {} (sysrc kld_list)",
-            names.join(", "),
-            missing.join(", ")
-        ))
-    }
+    let text = lines.concat();
+    if problems > 0 { CheckResult::Warn(text) } else { CheckResult::Ok(text) }
 }
 
 fn kms_loaded() -> CheckResult {
     let out = util::capture("kldstat", &[]).unwrap_or_default();
-    for m in ["i915kms", "amdgpu", "nvidia-modeset", "vmwgfx"] {
-        if out.contains(m) {
-            return CheckResult::Ok(m.into());
-        }
+    let found: Vec<&str> = ["i915kms", "amdgpu", "radeonkms", "nvidia-drm", "nvidia-modeset", "nvidia.ko"]
+        .into_iter()
+        .filter(|m| out.contains(m))
+        .collect();
+    if found.is_empty() {
+        // X11 still runs on the EFI framebuffer (scfb) — fine in VMs.
+        CheckResult::Warn("no kms module loaded — X11 falls back to scfb (sysrc kld_list)".into())
+    } else {
+        CheckResult::Ok(found.join(", "))
     }
-    // X11 still runs on the EFI framebuffer (scfb) — fine in VMs.
-    CheckResult::Warn("no kms module loaded — X11 falls back to scfb (sysrc kld_list)".into())
 }
 
 fn xdg_runtime_dir() -> CheckResult {
@@ -175,6 +193,41 @@ fn sleep_state() -> CheckResult {
     } else {
         CheckResult::Fail(format!("no usable sleep state: {}", s.trim()))
     }
+}
+
+fn bt_state() -> CheckResult {
+    let ubt = (0..4)
+        .map(|n| format!("ubt{n}"))
+        .find(|d| std::path::Path::new(&format!("/dev/{d}")).exists());
+    let Some(dev) = ubt else {
+        return CheckResult::Ok("no controller attached".into());
+    };
+    // FreeBSD only drives Bluetooth over USB (ng_ubt) — firmware for
+    // Intel/Realtek comes from iwmbt-firmware / rtlbt-firmware.
+    let loaded = util::capture("kldstat", &["-v"]).unwrap_or_default();
+    let mut notes = vec![dev];
+    if !loaded.contains("ng_ubt") {
+        notes.push("ng_ubt not loaded — `vellum bt on`".into());
+    }
+    if util::capture("service", &["bluetooth", "status"]).is_none() {
+        notes.push("service stopped".into());
+    }
+    CheckResult::Ok(notes.join(", "))
+}
+
+fn suspend_hooks() -> CheckResult {
+    let missing: Vec<&str> = ["/etc/rc.suspend", "/etc/rc.resume"]
+        .into_iter()
+        .filter(|p| !std::path::Path::new(p).exists())
+        .collect();
+    if !missing.is_empty() {
+        return CheckResult::Warn(format!("{} missing — resume won't be cleaned up", missing.join(", ")));
+    }
+    // lock-before-sleep only works if a locker exists
+    if !util::on_path("slock") {
+        return CheckResult::Warn("hooks installed but slock missing — resume lands unlocked".into());
+    }
+    CheckResult::Ok("rc.suspend/rc.resume + slock".into())
 }
 
 fn apple_hardware() -> CheckResult {

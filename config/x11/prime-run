@@ -2,16 +2,31 @@
 # prime-run — run a program on the discrete GPU (hybrid graphics).
 #   prime-run <cmd>        e.g. prime-run glxinfo -B
 #
-# AMD/Intel dGPU: DRI_PRIME selects the render node (needs the drm-kmod
-#                 driver loaded for the dGPU).
-# NVIDIA dGPU:    PRIME render offload vars (proprietary driver).
+# The desktop itself always runs on the boot/iGPU — only what you launch
+# through this wrapper hits the dGPU.
 #
-# The desktop itself always runs on the integrated GPU — only what you
-# launch through this wrapper hits the dGPU.
-exec env \
-    DRI_PRIME=1 \
-    __NV_PRIME_RENDER_OFFLOAD=1 \
-    __NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0 \
-    __GLX_VENDOR_LIBRARY_NAME=nvidia \
-    __VK_LAYER_NV_optimus=NVIDIA_only \
-    "$@"
+# `vellum install` writes /usr/local/etc/vellum/gpu.env with the offload
+# GPU it detected: VELLUM_OFFLOAD=nvidia|dri|none and, for dri, the
+# deterministic Mesa selector VELLUM_DRI_PRIME=pci-XXXX_BB_SS_F.
+
+ENV_FILE=/usr/local/etc/vellum/gpu.env
+[ -f "$ENV_FILE" ] && . "$ENV_FILE"
+
+case "${VELLUM_OFFLOAD:-dri}" in
+    nvidia)
+        exec env \
+            __NV_PRIME_RENDER_OFFLOAD=1 \
+            __NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0 \
+            __GLX_VENDOR_LIBRARY_NAME=nvidia \
+            __VK_LAYER_NV_optimus=NVIDIA_only \
+            "$@"
+        ;;
+    none)
+        echo "prime-run: no offload GPU detected — running on the primary GPU" >&2
+        exec "$@"
+        ;;
+    *)
+        # DRI_PRIME accepts a /dev/dri path or the pci-XXXX_BB_SS_F tag
+        exec env DRI_PRIME="${VELLUM_DRI_PRIME:-1}" "$@"
+        ;;
+esac

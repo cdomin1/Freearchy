@@ -106,7 +106,25 @@ fn system_setup(repo: &Path) -> Result<()> {
     let klds = crate::gpu::kld_list();
     if !klds.is_empty() {
         util::run("sysrc", &[&format!("kld_list+={klds}")])?;
+        for m in klds.split_whitespace() {
+            let _ = util::capture("kldload", &["-n", m]);
+        }
+        // AMD cards the codename table missed: amdgpu won't claim SI/CIK
+        let amd = crate::gpu::probe_amd_fallback();
+        if !amd.is_empty() {
+            println!("==> AMD KMS: {}", amd.join(", "));
+        }
     }
+    // nvidia-drm needs modeset enabled before it loads
+    let lc = "/boot/loader.conf";
+    let mut loader = fs::read_to_string(lc).unwrap_or_default();
+    for line in crate::gpu::loader_conf_lines() {
+        let key = line.split('=').next().unwrap_or(line);
+        if !loader.contains(key) {
+            loader.push_str(&format!("{line}\n"));
+        }
+    }
+    fs::write(lc, loader)?;
 
     // Seat + GPU access for the user who invoked the install (via doas/sudo).
     if let Some(user) = util::invoking_user() {
@@ -115,12 +133,18 @@ fn system_setup(repo: &Path) -> Result<()> {
 
     // Pin the right X11 driver for detected hardware (hybrid-safe).
     crate::gpu::write_xorg_conf("");
-    // prime-run helper for dGPU offload on hybrid systems.
-    let src = repo.join("config/x11/prime-run");
-    let dst = "/usr/local/bin/prime-run";
-    let _ = fs::copy(&src, dst);
+    // Session helpers on PATH: prime-run (dGPU offload), vellum-menu +
+    // vellum-shot (rofi menus, screenshot keys).
     use std::os::unix::fs::PermissionsExt;
-    let _ = fs::set_permissions(dst, fs::Permissions::from_mode(0o755));
+    for src in [
+        repo.join("config/x11/prime-run"),
+        repo.join("config/x11/bin/vellum-menu"),
+        repo.join("config/x11/bin/vellum-shot"),
+    ] {
+        let dst = format!("/usr/local/bin/{}", src.file_name().unwrap().to_string_lossy());
+        let _ = fs::copy(&src, &dst);
+        let _ = fs::set_permissions(&dst, fs::Permissions::from_mode(0o755));
+    }
 
     power_setup(repo)?;
     Ok(())
@@ -139,11 +163,16 @@ fn power_setup(repo: &Path) -> Result<()> {
             // sysctl.conf — append missing lines rather than clobber.
             let sc = "/etc/sysctl.conf";
             let mut text = fs::read_to_string(sc).unwrap_or_default();
-            for k in ["hw.acpi.lid_switch_state", "hw.acpi.sleep_button_state"] {
+            for (k, v) in [
+                ("hw.acpi.suspend_state", state.as_str()),
+                ("hw.acpi.lid_switch_state", state.as_str()),
+                ("hw.acpi.sleep_button_state", state.as_str()),
+                ("hw.acpi.power_button_state", "S5"),
+            ] {
                 if !text.contains(k) {
-                    text.push_str(&format!("{k}={state}\n"));
+                    text.push_str(&format!("{k}={v}\n"));
                 }
-                let _ = util::run("sysctl", &[&format!("{k}={state}")]);
+                let _ = util::run("sysctl", &[&format!("{k}={v}")]);
             }
             fs::write(sc, text)?;
 

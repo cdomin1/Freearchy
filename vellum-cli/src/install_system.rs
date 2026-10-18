@@ -400,8 +400,12 @@ fn boot_loader(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
             "zfs_load=\"YES\"\nvfs.root.mountfrom=\"zfs:{}/ROOT/default\"\n\
              kern.geom.label.disk_ident.enable=\"0\"\nkern.geom.label.gptid.enable=\"0\"\n\
              # power: put driverless PCI devices into D3\n\
-             hw.pci.do_power_nodriver=\"3\"\n",
-            pool()
+             hw.pci.do_power_nodriver=\"3\"\n{}",
+            pool(),
+            crate::gpu::loader_conf_lines()
+                .iter()
+                .map(|l| format!("{l}\n"))
+                .collect::<String>()
         ),
     )?;
 
@@ -512,6 +516,7 @@ fn sleep_setup() {
         format!("{MNT}/etc/sysctl.conf"),
         format!(
             "# Vellum suspend config\n\
+             hw.acpi.suspend_state={state}\n\
              hw.acpi.lid_switch_state={state}\n\
              hw.acpi.sleep_button_state={state}\n\
              hw.acpi.power_button_state=S5\n"
