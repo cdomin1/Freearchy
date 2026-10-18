@@ -10,7 +10,7 @@ real hardware with working KMS.
 - [x] Repo layout, package manifests, theme system
 - [x] `vellum` CLI: install / install-system / theme / power / doctor / image
 - [x] `boot.sh` curl-install bootstrap
-- [x] Image builder + bsdinstall `installerconfig` skeleton
+- [x] Image builder (memstick remaster) + `vellum install-system` wizard
 - [x] Rename Freearchy → VELLUM (crates, paths, env vars, branding, GitHub repo)
 
 ## Phase 2 — X11 desktop (done)

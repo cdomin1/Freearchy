@@ -40,7 +40,7 @@ a pool whose vdev isn't the selected disk.
 
 Stock `bsdinstall`, with these choices:
 
-- **ZFS root** (matches our image builder's `installerconfig`)
+- **ZFS root** (matches the layout `vellum install-system` creates)
 - Create a normal user; add it to `wheel` and `video`
 - **Enable `sshd`** — copy/paste between macOS and the guest is unreliable;
   plan to `ssh` in from the Mac and paste `boot.sh`'s one-liner there
