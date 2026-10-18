@@ -1,0 +1,118 @@
+/* VELLUM site — Tokyo Night */
+:root{
+  --bg:#1a1b26; --bg-dark:#13141c; --bg-darker:#0e0e14; --bg-light:#24283b;
+  --fg:#a9b1d6; --fg-dim:#565f89; --fg-bright:#c0caf5;
+  --accent:#7aa2f7; --green:#9ece6a; --red:#f7768e; --cyan:#449dab; --mag:#ad8ee6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--fg);
+  font-family:"JetBrains Mono","SF Mono","Cascadia Code","Fira Code",Menlo,Consolas,monospace;
+  line-height:1.6;font-size:16px;
+}
+
+/* nav */
+nav{display:flex;align-items:center;justify-content:space-between;
+  padding:1rem 2rem;border-bottom:1px solid var(--bg-light);
+  position:sticky;top:0;background:var(--bg);z-index:10}
+.nav-logo{height:1.4rem;fill:var(--fg-bright)}
+.nav-links{display:flex;gap:1.5rem}
+.nav-links a{color:var(--fg-dim);text-decoration:none;font-size:.85rem}
+.nav-links a:hover{color:var(--accent)}
+
+/* hero */
+.hero{text-align:center;padding:5rem 1.5rem 4rem;
+  background:linear-gradient(180deg,var(--bg-dark) 0%,var(--bg) 100%)}
+.logo{width:min(560px,80vw);fill:var(--fg-bright);margin:0 auto 1.5rem;display:block}
+.tagline{font-size:1.35rem;color:var(--fg-bright)}
+.accent{color:var(--accent)}
+.sub{color:var(--fg-dim);margin:.75rem auto 2rem;max-width:44rem}
+
+.install{display:inline-flex;align-items:center;gap:0;
+  background:var(--bg-darker);border:1px solid var(--bg-light);
+  border-radius:8px;padding:.8rem 1rem;max-width:92vw}
+.install code{font-size:.85rem;color:var(--fg-bright);
+  overflow-x:auto;white-space:nowrap}
+.install code::before{content:"$ ";color:var(--fg-dim)}
+.copy{background:none;border:0;color:var(--fg-dim);cursor:pointer;
+  font-size:1rem;padding-left:.8rem}
+.copy:hover{color:var(--accent)}
+
+.cta{margin-top:2rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+.btn{color:var(--fg-bright);text-decoration:none;border:1px solid var(--bg-light);
+  border-radius:8px;padding:.65rem 1.4rem;font-size:.9rem;background:var(--bg-light)}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--bg-darker);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.12)}
+
+/* sections */
+section{max-width:1020px;margin:0 auto;padding:4rem 1.5rem}
+h2{color:var(--fg-bright);font-size:1.5rem;text-align:center;margin-bottom:1.8rem}
+h2::after{content:"";display:block;width:48px;height:2px;background:var(--accent);margin:.6rem auto 0}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
+.card{background:var(--bg-dark);border:1px solid var(--bg-light);
+  border-radius:10px;padding:1.3rem}
+.card:hover{border-color:var(--muted,#414868)}
+.card h3{color:var(--accent);font-size:1rem;margin-bottom:.5rem}
+.card p{color:var(--fg);font-size:.88rem}
+code{color:var(--cyan)}
+
+/* fake terminal */
+.term-wrap{padding-top:1rem}
+.term{background:var(--bg-darker);border:1px solid var(--bg-light);
+  border-radius:10px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.term-bar{display:flex;align-items:center;gap:.45rem;
+  background:var(--bg-dark);padding:.6rem .9rem}
+.term-bar span{width:11px;height:11px;border-radius:50%;background:var(--bg-light)}
+.term-bar span:nth-child(1){background:var(--red)}
+.term-bar span:nth-child(2){background:#e0af68}
+.term-bar span:nth-child(3){background:var(--green)}
+.term-bar em{margin-left:auto;font-style:normal;color:var(--fg-dim);font-size:.75rem}
+.term pre{padding:1.2rem 1.4rem;font-size:.82rem;overflow-x:auto;
+  color:var(--fg);line-height:1.7}
+.term .p{color:var(--accent);font-weight:bold}
+.term .ok{color:var(--green)}
+.term .dim{color:var(--fg-dim)}
+
+/* keys */
+.keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.8rem}
+.keys div{display:flex;align-items:center;gap:.4rem;
+  background:var(--bg-dark);border:1px solid var(--bg-light);
+  border-radius:8px;padding:.7rem .9rem;font-size:.8rem}
+.keys span{margin-left:auto;color:var(--fg-dim)}
+kbd{background:var(--bg-light);border:1px solid var(--fg-dim);
+  border-bottom-width:2px;border-radius:5px;padding:.15rem .45rem;
+  color:var(--fg-bright);font-size:.75rem;font-family:inherit}
+
+/* theme chips */
+.center-dim{text-align:center;color:var(--fg-dim);margin-bottom:1.6rem;font-size:.9rem}
+.chips{display:flex;flex-wrap:wrap;gap:.6rem;justify-content:center}
+.chip{border:1px solid var(--bg-light);border-radius:999px;
+  padding:.35rem .9rem;font-size:.78rem;color:var(--fg);
+  position:relative;padding-left:1.7rem;background:var(--bg-dark)}
+.chip::before{content:"";position:absolute;left:.7rem;top:50%;
+  transform:translateY(-50%);width:9px;height:9px;border-radius:50%;
+  background:var(--c)}
+.chip:hover{border-color:var(--c)}
+
+/* why freebsd */
+.fbsd p{max-width:46rem;margin:0 auto 1rem;text-align:center;color:var(--fg)}
+.fbsd em{color:var(--fg-bright)}
+
+/* footer */
+footer{border-top:1px solid var(--bg-light);padding:3rem 1.5rem;
+  text-align:center;color:var(--fg-dim);font-size:.85rem;background:var(--bg-dark)}
+.foot-logo{color:var(--fg-bright);letter-spacing:.5em;font-size:1.1rem;
+  margin-bottom:.8rem;padding-left:.5em}
+.foot-links{display:flex;gap:1.4rem;justify-content:center;margin:.8rem 0}
+.foot-links a{color:var(--fg);text-decoration:none}
+.foot-links a:hover{color:var(--accent)}
+.dim{color:var(--fg-dim);font-size:.75rem;margin-top:.8rem}
+
+@media (max-width:560px){
+  .hero{padding:3rem 1rem}
+  .tagline{font-size:1.1rem}
+  .nav-links{gap:.9rem}
+}

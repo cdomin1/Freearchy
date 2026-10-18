@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VELLUM — An opinionated FreeBSD desktop</title>
+<meta name="description" content="An Omarchy-inspired, opinionated desktop for FreeBSD. One command. A complete tiling system.">
+<link rel="icon" type="image/svg+xml" href="vellum-logo.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <svg class="nav-logo" viewBox="0 0 1920 1080" aria-label="VELLUM">
+    <path d="M263.42,713.12v-350.93h58.49v292.44h58.49v-14.62h14.62v-277.82h58.49v307.07h-14.62v14.62h-14.62v14.62h-14.62v14.62h-146.22Z"/>
+    <path d="M497.38,713.12v-350.93h190.09v58.49h-131.6v87.73h102.35v58.49h-102.35v87.73h131.6v58.49h-190.09Z"/>
+    <path d="M731.33,713.12v-350.93h58.49v292.44h131.6v58.49h-190.09Z"/>
+    <path d="M965.29,713.12v-350.93h58.49v292.44h131.6v58.49h-190.09Z"/>
+    <path d="M1243.11,713.12v-14.62h-14.62v-14.62h-14.62v-14.62h-14.62v-307.07h58.49v277.82h14.62v14.62h43.87v-14.62h14.62v-277.82h58.49v307.07h-14.62v14.62h-14.62v14.62h-14.62v14.62h-102.36Z"/>
+    <path d="M1433.19,713.12v-350.93h58.49v29.24h14.62v29.24h14.62v29.24h14.62v-29.24h14.62v-29.24h14.62v-29.24h14.62v-29.24h58.49v350.93h-58.49v-233.95h-14.62v29.24h-14.62v29.24h-14.62v-29.24h-14.62v-29.24h-14.62v233.95h-58.49Z"/>
+  </svg>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#themes">Themes</a>
+    <a href="#keys">Keys</a>
+    <a href="https://github.com/cdomin1/vellum">GitHub</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <svg class="logo" viewBox="0 0 1920 1080" aria-label="VELLUM">
+    <path d="M263.42,713.12v-350.93h58.49v292.44h58.49v-14.62h14.62v-277.82h58.49v307.07h-14.62v14.62h-14.62v14.62h-14.62v14.62h-146.22Z"/>
+    <path d="M497.38,713.12v-350.93h190.09v58.49h-131.6v87.73h102.35v58.49h-102.35v87.73h131.6v58.49h-190.09Z"/>
+    <path d="M731.33,713.12v-350.93h58.49v292.44h131.6v58.49h-190.09Z"/>
+    <path d="M965.29,713.12v-350.93h58.49v292.44h131.6v58.49h-190.09Z"/>
+    <path d="M1243.11,713.12v-14.62h-14.62v-14.62h-14.62v-14.62h-14.62v-307.07h58.49v277.82h14.62v14.62h43.87v-14.62h14.62v-277.82h58.49v307.07h-14.62v14.62h-14.62v14.62h-14.62v14.62h-102.36Z"/>
+    <path d="M1433.19,713.12v-350.93h58.49v29.24h14.62v29.24h14.62v29.24h14.62v-29.24h14.62v-29.24h14.62v-29.24h58.49v350.93h-58.49v-233.95h-14.62v29.24h-14.62v29.24h-14.62v-29.24h-14.62v-29.24h-14.62v233.95h-58.49Z"/>
+  </svg>
+  <p class="tagline">An Omarchy-inspired, opinionated desktop for <span class="accent">FreeBSD</span>.</p>
+  <p class="sub">One command. A complete tiling system. ZFS underneath, Rust in the middle, Tokyo Night on top.</p>
+
+  <div class="install">
+    <code>fetch https://raw.githubusercontent.com/cdomin1/vellum/main/boot.sh -o - | sh</code>
+    <button class="copy" onclick="copyInstall(this)" title="Copy">⧉</button>
+  </div>
+
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/cdomin1/vellum">View on GitHub</a>
+    <a class="btn" href="https://github.com/cdomin1/vellum#quick-start--installer-image-pre-alpha">Get the image</a>
+  </div>
+</header>
+
+<section id="features">
+  <h2>Everything installed. Nothing to configure.</h2>
+  <div class="grid">
+    <div class="card"><h3>Keyboard-driven tiling</h3><p><code>vellum-wm</code> — a Rust tiling WM on penrose/x11rb. Omarchy keymap, workspaces 1–9, gaps, themed borders. No mouse required.</p></div>
+    <div class="card"><h3>Animated X11</h3><p>pijulius/picom compositor for zoom &amp; slide window animations. Runs on a plain framebuffer — works in VMs, no KMS handshake.</p></div>
+    <div class="card"><h3>22 themes</h3><p>Every Omarchy palette ported. One command re-themes the terminal, launcher, panel, borders and wallpaper.</p></div>
+    <div class="card"><h3>Power that thinks</h3><p>AC/battery profiles via devd, adaptive CPU with powerdxx, ThinkPad charge thresholds, S3/s2idle suspend that locks before it sleeps.</p></div>
+    <div class="card"><h3>GPU autodetect</h3><p>Intel, AMD, NVIDIA &amp; hybrids detected at install. iGPU drives the desktop, <code>prime-run</code> hands work to the dGPU.</p></div>
+    <div class="card"><h3>TUI installer</h3><p>A ratatui wizard: disk → ZFS → user → done. Live logs, boot environments via <code>bectl</code>, first-boot setup.</p></div>
+  </div>
+</section>
+
+<section class="term-wrap">
+  <div class="term">
+    <div class="term-bar"><span></span><span></span><span></span><em>alacritty — vellum doctor</em></div>
+<pre><span class="p">$</span> vellum doctor
+  <span class="ok">✓</span> vellum-wm installed
+  <span class="ok">✓</span> polybar installed
+  <span class="ok">✓</span> picom installed
+  <span class="ok">✓</span> gpu detected / driver <span class="dim">— i915kms, hybrid (intel+nvidia), prime-run ready</span>
+  <span class="ok">✓</span> suspend support <span class="dim">— S3 via zzz, lid → suspend, slock on wake</span>
+  <span class="ok">✓</span> power profiles <span class="dim">— balanced on AC, power on battery (devd)</span>
+
+<span class="p">$</span> vellum theme set gruvbox
+  <span class="dim">linked ~/.config/vellum/current/theme → gruvbox
+  wallpaper applied · polybar restarted</span></pre>
+  </div>
+</section>
+
+<section id="keys">
+  <h2>Muscle memory, imported</h2>
+  <div class="keys">
+    <div><kbd>Super</kbd>+<kbd>⏎</kbd><span>terminal</span></div>
+    <div><kbd>Super</kbd>+<kbd>Space</kbd><span>launcher</span></div>
+    <div><kbd>Super</kbd>+<kbd>B</kbd><span>browser</span></div>
+    <div><kbd>Super</kbd>+<kbd>F</kbd><span>files</span></div>
+    <div><kbd>Super</kbd>+<kbd>Q</kbd><span>close</span></div>
+    <div><kbd>Super</kbd>+<kbd>1–9</kbd><span>workspaces</span></div>
+    <div><kbd>Super</kbd>+<kbd>Esc</kbd><span>lock</span></div>
+    <div><kbd>Super</kbd>+<kbd>⇧</kbd>+<kbd>Esc</kbd><span>suspend</span></div>
+  </div>
+</section>
+
+<section id="themes">
+  <h2>22 palettes. One command.</h2>
+  <p class="center-dim"><code>vellum theme set gruvbox</code> · <code>vellum theme next</code></p>
+  <div class="chips">
+    <div class="chip" style="--c:#7aa2f7">tokyo-night</div>
+    <div class="chip" style="--c:#89b4fa">catppuccin</div>
+    <div class="chip light" style="--c:#1e66f5">catppuccin-latte</div>
+    <div class="chip" style="--c:#7d82d9">ethereal</div>
+    <div class="chip" style="--c:#7fbbb3">everforest</div>
+    <div class="chip light" style="--c:#205EA6">flexoki-light</div>
+    <div class="chip" style="--c:#7daea3">gruvbox</div>
+    <div class="chip" style="--c:#82FB9C">hackerman</div>
+    <div class="chip" style="--c:#dcd7ba">kanagawa</div>
+    <div class="chip" style="--c:#b59790">last-horizon</div>
+    <div class="chip" style="--c:#8bc9eb">lumon</div>
+    <div class="chip light" style="--c:#3264eb">lupine</div>
+    <div class="chip" style="--c:#e68e0d">matte-black</div>
+    <div class="chip" style="--c:#78824b">miasma</div>
+    <div class="chip" style="--c:#81a1c1">nord</div>
+    <div class="chip" style="--c:#509475">osaka-jade</div>
+    <div class="chip" style="--c:#faa968">retro-82</div>
+    <div class="chip" style="--c:#f38d70">ristretto</div>
+    <div class="chip light" style="--c:#56949f">rose-pine</div>
+    <div class="chip" style="--c:#798186">solitude</div>
+    <div class="chip" style="--c:#8d8d8d">vantablack</div>
+    <div class="chip light" style="--c:#6e6e6e">white</div>
+  </div>
+</section>
+
+<section class="fbsd">
+  <h2>Why FreeBSD?</h2>
+  <p>ZFS root with <code>bectl</code> boot environments — the snapshot-and-rollback story, natively. A coherent base system instead of a kernel plus thirty vendors. Jails when you want isolation. Ports when you want the source.</p>
+  <p>Same contract as Omarchy: <em>one command, a fully-working, opinionated desktop.</em> Just on a different kernel.</p>
+</section>
+
+<footer>
+  <div class="foot-logo">VELLUM</div>
+  <p>pre-alpha · amd64 + aarch64 · MIT where ours</p>
+  <div class="foot-links">
+    <a href="https://github.com/cdomin1/vellum">GitHub</a>
+    <a href="https://github.com/cdomin1/vellum/tree/main/docs">Docs</a>
+    <a href="https://github.com/cdomin1/vellum/releases">Images</a>
+  </div>
+  <p class="dim">VELLUM is an independent project, inspired by and unaffiliated with Omarchy.</p>
+</footer>
+
+<script>
+function copyInstall(btn){
+  navigator.clipboard.writeText('fetch https://raw.githubusercontent.com/cdomin1/vellum/main/boot.sh -o - | sh');
+  btn.textContent='✓'; setTimeout(()=>btn.textContent='⧉',1500);
+}
+</script>
+</body>
+</html>
