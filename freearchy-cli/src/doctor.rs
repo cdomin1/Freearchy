@@ -75,7 +75,12 @@ fn gpu_state() -> CheckResult {
         })
         .collect();
     if missing.is_empty() {
-        CheckResult::Ok(names.join(", "))
+        let hybrid = if crate::gpu::is_hybrid() {
+            " — hybrid: desktop on iGPU, offload via prime-run"
+        } else {
+            ""
+        };
+        CheckResult::Ok(format!("{}{hybrid}", names.join(", ")))
     } else {
         CheckResult::Warn(format!(
             "{} — kmod not loaded: {} (sysrc kld_list)",

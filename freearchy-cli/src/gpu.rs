@@ -85,6 +85,11 @@ pub fn packages() -> Vec<&'static str> {
     pkgs
 }
 
+/// True when more than one known GPU is present (iGPU + dGPU laptop).
+pub fn is_hybrid() -> bool {
+    detect().len() > 1
+}
+
 /// X11 driver for the primary adapter: modesetting on KMS hardware,
 /// "nvidia" only when NVIDIA is the sole GPU.
 pub fn xorg_driver() -> &'static str {
@@ -97,7 +102,8 @@ pub fn xorg_driver() -> &'static str {
 }
 
 /// /usr/local/etc/X11/xorg.conf.d/20-freearchy.conf — pin the DDX driver
-/// so Xorg doesn't guess wrong on hybrid hardware.
+/// so Xorg doesn't guess wrong on hybrid hardware. The dGPU is left for
+/// PRIME render offload (see /usr/local/bin/prime-run).
 pub fn write_xorg_conf(root: &str) {
     let dir = format!("{root}/usr/local/etc/X11/xorg.conf.d");
     if fs::create_dir_all(&dir).is_err() {
@@ -106,7 +112,9 @@ pub fn write_xorg_conf(root: &str) {
     let _ = fs::write(
         format!("{dir}/20-freearchy.conf"),
         format!(
-            "Section \"Device\"\n    Identifier \"freearchy-gpu\"\n    Driver \"{}\"\nEndSection\n",
+            "# Freearchy GPU pin — {} detected\n\
+             Section \"Device\"\n    Identifier \"freearchy-gpu\"\n    Driver \"{}\"\nEndSection\n",
+            if is_hybrid() { "hybrid graphics (iGPU drives the session)" } else { "single GPU" },
             xorg_driver()
         ),
     );

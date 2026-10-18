@@ -127,6 +127,12 @@ fn system_setup() -> Result<()> {
 
     // Pin the right X11 driver for detected hardware (hybrid-safe).
     crate::gpu::write_xorg_conf("");
+    // prime-run helper for dGPU offload on hybrid systems.
+    let src = repo.join("config/x11/prime-run");
+    let dst = "/usr/local/bin/prime-run";
+    let _ = fs::copy(&src, dst);
+    use std::os::unix::fs::PermissionsExt;
+    let _ = fs::set_permissions(dst, fs::Permissions::from_mode(0o755));
 
     power_setup(repo)?;
     Ok(())

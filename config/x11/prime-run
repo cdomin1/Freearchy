@@ -1,0 +1,17 @@
+#!/bin/sh
+# prime-run — run a program on the discrete GPU (hybrid graphics).
+#   prime-run <cmd>        e.g. prime-run glxinfo -B
+#
+# AMD/Intel dGPU: DRI_PRIME selects the render node (needs the drm-kmod
+#                 driver loaded for the dGPU).
+# NVIDIA dGPU:    PRIME render offload vars (proprietary driver).
+#
+# The desktop itself always runs on the integrated GPU — only what you
+# launch through this wrapper hits the dGPU.
+exec env \
+    DRI_PRIME=1 \
+    __NV_PRIME_RENDER_OFFLOAD=1 \
+    __NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0 \
+    __GLX_VENDOR_LIBRARY_NAME=nvidia \
+    __VK_LAYER_NV_optimus=NVIDIA_only \
+    "$@"
