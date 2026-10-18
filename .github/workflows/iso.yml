@@ -71,6 +71,13 @@ jobs:
                         "$API/releases" | sed -n 's/.*"id": \([0-9]*\).*/\1/p' | head -1)
                 fi
                 [ -n "$RID" ] || { echo "!! could not create/get release" >&2; exit 1; }
+                # retagged builds: drop the stale asset so the upload doesn't 422
+                ASSET="vellum-15.1-${ARCH}-memstick.img.xz"
+                OLD=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" "$API/releases/$RID/assets" \
+                    | tr -d '\n' | tr '{' '\n' | grep "\"name\": *\"$ASSET\"" \
+                    | sed -n 's/.*"id": *\([0-9]*\).*/\1/p' | head -1)
+                [ -n "$OLD" ] && curl -sf -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
+                    "$API/releases/assets/$OLD" && echo "removed stale $ASSET"
                 curl -sf -X POST -H "Authorization: Bearer $GH_TOKEN" \
                     -H "Content-Type: application/octet-stream" \
                     --data-binary @"${IMG}.xz" \
