@@ -17,9 +17,18 @@ permissions:
 
 jobs:
   iso:
-    # vmactions needs an Intel macOS runner for amd64 FreeBSD;
-    # macos-15-intel is the post-macos-13-retirement Intel label.
-    runs-on: macos-15-intel
+    strategy:
+      matrix:
+        include:
+          # vmactions needs an Intel macOS runner for amd64 FreeBSD;
+          # arm runners (Apple Silicon) run aarch64 guests natively.
+          - arch: amd64
+            runner: macos-15-intel
+          - arch: aarch64
+            runner: macos-14
+    runs-on: ${{ matrix.runner }}
+    env:
+      ARCH: ${{ matrix.arch }}
     steps:
       - name: Build vellum + remaster image inside FreeBSD VM
         uses: vmactions/freebsd-vm@v1
@@ -34,6 +43,7 @@ jobs:
             GH_TOKEN
             GITHUB_REF_NAME
             GITHUB_REF_TYPE
+            ARCH
           run: |
             set -ex
             pkg install -y rust git-lite curl
@@ -44,7 +54,7 @@ jobs:
             cargo build --release -p vellum
             strip target/release/vellum
             VELLUM_BIN="$PWD/target/release/vellum" sh image/build-image.sh 15.1
-            xz -T0 FreeBSD-15.1-RELEASE-amd64-memstick.img
+            xz -T0 FreeBSD-15.1-RELEASE-${ARCH}-memstick.img
             # Tag builds: create-or-reuse the release, upload the img.xz.
             if [ "$GITHUB_REF_TYPE" = "tag" ]; then
                 REPO=cdomin1/Vellum
@@ -61,8 +71,8 @@ jobs:
                 [ -n "$RID" ] || { echo "!! could not create/get release" >&2; exit 1; }
                 curl -sf -X POST -H "Authorization: Bearer $GH_TOKEN" \
                     -H "Content-Type: application/octet-stream" \
-                    --data-binary @FreeBSD-15.1-RELEASE-amd64-memstick.img.xz \
-                    "https://uploads.github.com/repos/$REPO/releases/$RID/assets?name=vellum-15.1-amd64-memstick.img.xz" \
+                    --data-binary @FreeBSD-15.1-RELEASE-${ARCH}-memstick.img.xz \
+                    "https://uploads.github.com/repos/$REPO/releases/$RID/assets?name=vellum-15.1-${ARCH}-memstick.img.xz" \
                     >/dev/null
-                echo "uploaded vellum-15.1-amd64-memstick.img.xz to release $RID"
+                echo "uploaded vellum-15.1-${ARCH}-memstick.img.xz to release $RID"
             fi

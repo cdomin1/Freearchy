@@ -16,10 +16,15 @@ use std::time::{Duration, Instant};
 use super::install_system::{disks, execute, InstallSpec};
 use super::util;
 
-const GREEN: Color = Color::Indexed(120);
-const BLUE: Color = Color::Indexed(111);
-const DIM: Color = Color::Indexed(240);
-const FG: Color = Color::Indexed(255);
+// Tokyo Night (the default theme) as true RGB — exact palette, not
+// ANSI-256 approximations.
+const GREEN: Color = Color::Rgb(0x9e, 0xce, 0x6a);  // success
+const BLUE: Color = Color::Rgb(0x7a, 0xa2, 0xf7);   // accent (logo/prompts)
+const DIM: Color = Color::Rgb(0x56, 0x5f, 0x89);    // dark_foreground
+const FG: Color = Color::Rgb(0xc0, 0xca, 0xf5);     // bright_foreground
+const DANGER: Color = Color::Rgb(0xf7, 0x76, 0x8e); // red
+const MAGENTA: Color = Color::Rgb(0xbb, 0x9a, 0xf7);
+const BG_ALT: Color = Color::Rgb(0x24, 0x28, 0x3b); // lighter_background
 
 /// Pixel-style banner matching branding/vellum-logo.svg.
 const LOGO: [&str; 5] = [
@@ -313,7 +318,7 @@ fn draw(f: &mut Frame, w: &mut Wizard) {
     ])
     .split(area);
 
-    let color = if w.screen == Screen::Done { BLUE } else { GREEN };
+    let color = BLUE; // consistent accent on the logo through the flow
     let logo: Vec<Line> = LOGO
         .iter()
         .map(|l| {
@@ -383,7 +388,7 @@ fn draw(f: &mut Frame, w: &mut Wizard) {
                     Span::styled(prompt, Style::default().fg(BLUE)),
                     Span::styled("> ", Style::default().fg(BLUE)),
                     Span::styled(shown, Style::default().fg(FG)),
-                    Span::styled("█", Style::default().fg(Color::Indexed(177))),
+                    Span::styled("█", Style::default().fg(MAGENTA)),
                 ]),
             ];
             if !hint.is_empty() {
@@ -395,7 +400,7 @@ fn draw(f: &mut Frame, w: &mut Wizard) {
             if s == Screen::ConfirmPass && !w.confirm.is_empty() && w.confirm != w.password {
                 lines.push(Line::from(Span::styled(
                     "passwords don't match",
-                    Style::default().fg(Color::Red),
+                    Style::default().fg(DANGER),
                 )));
             }
             f.render_widget(Paragraph::new(lines), centered(body, 44));
@@ -403,7 +408,7 @@ fn draw(f: &mut Frame, w: &mut Wizard) {
         Screen::ConfirmErase => {
             let disk = &w.disks[w.disk_list.selected().unwrap_or(0)].0;
             let yes = Style::default().fg(Color::Black).bg(GREEN);
-            let no = Style::default().fg(FG).bg(Color::Indexed(237));
+            let no = Style::default().fg(FG).bg(BG_ALT);
             let lines = vec![
                 Line::from("Everything will be overwritten. There is no recovery possible.")
                     .style(Style::default().fg(FG)),
@@ -432,7 +437,7 @@ fn draw(f: &mut Frame, w: &mut Wizard) {
             if w.screen == Screen::Failed {
                 lines.push(Line::from(Span::styled(
                     w.err.clone(),
-                    Style::default().fg(Color::Red),
+                    Style::default().fg(DANGER),
                 )));
             }
             let n = lines.len();
