@@ -80,7 +80,8 @@ if [ "$ARCH" = "amd64" ]; then
     BOOT_ARGS="-o bootimage=i386;$WORK/tree/boot/cdboot -o no-emul-boot $BOOT_ARGS"
 fi
 # shellcheck disable=SC2086 # makefs takes -o key=value pairs unquoted
-makefs -t cd9660 -o rockridge -o label="VELLUM_${RELEASE}_${ARCH}" \
+LABEL="VELLUM_$(echo "$RELEASE" | tr -d .)_$(echo "$ARCH" | tr '[:lower:]' '[:upper:]')"
+makefs -t cd9660 -o rockridge -o label="$LABEL" \
     $BOOT_ARGS "$OUT" "$WORK/tree"
 
 echo "==> Done: $OUT"
