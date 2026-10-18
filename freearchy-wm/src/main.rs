@@ -119,6 +119,7 @@ fn raw_key_bindings() -> HashMap<String, Box<dyn KeyEventHandler<RustConn>>> {
         "M-space" => spawn(LAUNCHER),
         "M-b" => spawn("firefox"),
         "M-f" => spawn("nemo"),
+        "M-S-a" => spawn("alacritty -e aichat"),   // AI assistant (Omarchy-style)
 
         // floating toggle (Omarchy: Super+V)
         "M-v" => penrose::builtin::actions::floating::float_focused(),

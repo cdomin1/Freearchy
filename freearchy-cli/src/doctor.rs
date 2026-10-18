@@ -28,6 +28,7 @@ const CHECKS: &[Check] = &[
     Check { name: "XDG_RUNTIME_DIR set", run: xdg_runtime_dir },
     Check { name: "hyprland config linked", run: hypr_config },
     Check { name: "suspend support", run: sleep_state },
+    Check { name: "ai tools", run: ai_tools },
 ];
 
 fn bin(name: &str) -> CheckResult {
@@ -136,6 +137,18 @@ fn sleep_state() -> CheckResult {
         CheckResult::Ok(detail("s2idle"))
     } else {
         CheckResult::Fail(format!("no usable sleep state: {}", s.trim()))
+    }
+}
+
+fn ai_tools() -> CheckResult {
+    let have: Vec<&str> = ["aichat", "claude", "fabric"]
+        .into_iter()
+        .filter(|b| util::on_path(b))
+        .collect();
+    if have.is_empty() {
+        CheckResult::Warn("none installed (optional: aichat, claude-code, fabric)".into())
+    } else {
+        CheckResult::Ok(have.join(", "))
     }
 }
 

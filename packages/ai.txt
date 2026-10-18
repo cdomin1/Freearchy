@@ -1,0 +1,6 @@
+# Agentic / AI tooling (Omarchy ships aichat; we add the coding agents).
+# All optional — API keys are user-supplied (~/.config/aichat, `claude` login).
+aichat?                # misc/aichat — chat/RAG/agents across providers
+claude-code?           # misc/claude-code — agentic coding CLI
+fabric?                # misc/fabric — prompt-pattern pipelines
+llm?                   # python LLM cli (simonw) — in some branches only

@@ -11,6 +11,7 @@ const MANIFESTS: &[&str] = &[
     "hyprland.txt",
     "shell.txt",
     "desktop.txt",
+    "ai.txt",
 ];
 
 pub fn install_all(repo: &Path, include_dev: bool) -> Result<()> {
