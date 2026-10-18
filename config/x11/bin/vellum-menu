@@ -1,0 +1,141 @@
+#!/bin/sh
+# vellum-menu — Omarchy-style rofi system menus.
+#   vellum-menu [root|system|theme|power|capture|network|bluetooth|keys]
+set -u
+
+pick() {  # pick <prompt> — reads lines on stdin
+    rofi -dmenu -i -p "$1" -theme-str 'window {width: 460px;}'
+}
+
+root() {
+    c=$(printf 'System\nTheme\nPower\nCapture\nBluetooth\nNetwork\nInstall\nKeybindings\n' | pick vellum)
+    "${0}" "$(printf '%s' "$c" | tr 'A-Z' 'a-z')"
+}
+
+system() {
+    c=$(printf 'Lock\nSuspend\nLog out\nReboot\nPower off\n' | pick system) || exit 0
+    case "$c" in
+        Lock)       exec slock ;;
+        Suspend)    exec doas zzz ;;
+        "Log out")  pkill -x vellum-wm ;;
+        Reboot)     exec doas shutdown -r now ;;
+        "Power off") exec doas shutdown -p now ;;
+    esac
+}
+
+theme() {
+    names=$(vellum theme list 2>/dev/null | awk '{print $NF}')
+    c=$(printf '%s\n' "$names" | pick theme) || exit 0
+    [ -n "$c" ] && exec vellum theme set "$c"
+}
+
+power() {
+    c=$(printf 'Status\nPerformance\nBalanced\nSaver\n' | pick power) || exit 0
+    case "$c" in
+        Status) exec alacritty -e sh -c 'vellum power status; read -r _' ;;
+        Performance) exec doas /usr/local/libexec/vellum-power performance ;;
+        Balanced)    exec doas /usr/local/libexec/vellum-power balanced ;;
+        Saver)       exec doas /usr/local/libexec/vellum-power power ;;
+    esac
+}
+
+capture() {
+    c=$(printf 'Select region\nActive window\nFull screen\nPick a colour\n' | pick capture) || exit 0
+    case "$c" in
+        "Select region") exec vellum-shot select ;;
+        "Active window") exec vellum-shot window ;;
+        "Full screen")   exec vellum-shot full ;;
+        "Pick a colour") exec vellum-shot color ;;
+    esac
+}
+
+install() {
+    c=$(printf 'ArtCraft (experimental)\n' | pick install) || exit 0
+    case "$c" in
+        ArtCraft*)
+            if command -v artcraft-native >/dev/null 2>&1; then
+                exec artcraft-native
+            else
+                exec alacritty -e sh -c 'sh /usr/local/vellum/scripts/install-artcraft.sh; read -r _'
+            fi
+            ;;
+    esac
+}
+
+network() {
+    c=$(printf 'Wi-Fi status\nScan networks\nRestart networking\nEthernet (DHCP)\n' | pick network) || exit 0
+    case "$c" in
+        "Wi-Fi status") exec alacritty -e sh -c 'vellum wifi status; read -r _' ;;
+        "Scan networks")
+            ssid=$(vellum wifi scan 2>/dev/null | pick ssid | awk '{print $1}')
+            [ -n "$ssid" ] && exec alacritty -e sh -c "vellum wifi connect '$ssid'"
+            ;;
+        "Restart networking") exec doas service netif restart ;;
+        "Ethernet (DHCP)")    exec doas dhclient "$(ifconfig -l | tr ' ' '\n' | grep -v 'lo0\|wlan' | head -1)" ;;
+    esac
+}
+
+bluetooth() {
+    c=$(printf 'Status\nScan\nOn\nOff\n' | pick bluetooth) || exit 0
+    case "$c" in
+        Status) exec alacritty -e sh -c 'vellum bt status; read -r _' ;;
+        Scan)
+            dev=$(vellum bt scan 2>/dev/null | pick device | awk '{print $1}')
+            [ -n "$dev" ] && exec alacritty -e sh -c "vellum bt pair '$dev'"
+            ;;
+        On)  exec doas vellum bt on ;;
+        Off) exec doas vellum bt off ;;
+    esac
+}
+
+keys() {
+    cat <<'EOF' | pick "keybindings (type to filter, esc closes)"
+Super Return         terminal (alacritty)
+Super Space          launcher (rofi)
+Super Alt Space      this menu
+Super B              browser — Super Shift B private
+Super Shift F        file manager (thunar)
+Super N              editor (nvim)
+Super T              system monitor (btop)
+Super Y              TUI file manager (yazi)
+Super G              lazygit
+Super A              AI chat (aichat)
+Super C / Calc       rofi calculator
+Super /              this keybinding sheet
+Super S              scratchpad terminal
+Super J/K or Up/Dn   focus window
+Super Shift J/K      move window in stack
+Super H / L          fewer / more main columns
+Super = / -          grow / shrink main area
+Super Ctrl Left/Right  previous / next workspace
+Super [ / ]          prev / next monitor
+Super ` / Shift `    next / previous layout
+Super 1..9           workspace n
+Super Shift 1..9     move window to workspace n
+Super Tab            last workspace
+Super F              fullscreen
+Super V / Shift V    float / sink
+Super W or Q         close window
+Print                screenshot region
+Shift Print          active window
+Ctrl Print           full screen
+Super Print          colour picker
+Super Escape         system menu
+Super Shift Escape   suspend (zzz)
+Ctrl Alt L           lock (slock)
+Super Shift Q        log out
+EOF
+}
+
+case "${1:-root}" in
+    root|"")     root ;;
+    system)      system ;;
+    theme)       theme ;;
+    power)       power ;;
+    capture)     capture ;;
+    network)     network ;;
+    bluetooth)   bluetooth ;;
+    install)     install ;;
+    keys|help)   keys ;;
+    *) echo "usage: vellum-menu [root|system|theme|power|capture|network|bluetooth|keys]" >&2; exit 1 ;;
+esac

@@ -22,24 +22,32 @@ use penrose::{
         },
     },
     core::{
-        Config, WindowManager,
+        Config, State, WindowManager,
         bindings::{
             KeyEventHandler, MouseEventHandler, MouseState, click_handler,
             parse_keybindings_with_xmodmap,
         },
         layout::LayoutStack,
     },
-    extensions::{actions::toggle_fullscreen, hooks::add_ewmh_hooks},
+    extensions::{
+        actions::toggle_fullscreen,
+        hooks::{
+            add_ewmh_hooks,
+            named_scratchpads::{add_named_scratchpads, NamedScratchPad},
+        },
+    },
     map, stack,
     util::spawn_with_args,
+    x::query::ClassName,
     x11rb::RustConn,
-    Result,
+    Result, Xid,
 };
 use std::collections::HashMap;
 use tracing_subscriber::util::SubscriberInitExt;
 
 const TERMINAL: &str = "alacritty";
 const LAUNCHER: &str = "rofi -show drun";
+const MENU: &str = "vellum-menu";
 
 // --- theme colors (Tokyo Night defaults; overridden by the active theme's
 //     wm.conf at ~/.config/vellum/current/theme) ----------------------------
@@ -88,11 +96,20 @@ const OUTER_PX: u32 = 5;
 const INNER_PX: u32 = 5;
 const BORDER_PX: u32 = 2;
 
-fn raw_key_bindings() -> HashMap<String, Box<dyn KeyEventHandler<RustConn>>> {
+/// Centre-floating rect (75% of screen) for the scratchpad terminal.
+fn centre_float(id: Xid, state: &mut State<RustConn>, _: &RustConn) -> Result<()> {
+    let r = state.client_set.current_screen().geometry();
+    state.client_set.float(id, r.shrink_in(r.w / 8))
+}
+
+fn raw_key_bindings(
+    toggle_nsp: impl KeyEventHandler<RustConn> + 'static,
+) -> HashMap<String, Box<dyn KeyEventHandler<RustConn>>> {
     let mut raw_bindings = map! {
         map_keys: |k: &str| k.to_string();
 
-        // focus (vim keys + arrows)
+        // focus (vim keys + arrows; stack order — penrose has no spatial
+        // focus, so h/l adjust the main/stack split instead)
         "M-j" => modify_with(|cs| cs.focus_down()),
         "M-k" => modify_with(|cs| cs.focus_up()),
         "M-Down" => modify_with(|cs| cs.focus_down()),
@@ -109,44 +126,69 @@ fn raw_key_bindings() -> HashMap<String, Box<dyn KeyEventHandler<RustConn>>> {
         // layout sizing (Omarchy: Super +/- resize)
         "M-equal" => send_layout_message(|| ExpandMain),
         "M-minus" => send_layout_message(|| ShrinkMain),
+        "M-C-h" => send_layout_message(|| ShrinkMain),
+        "M-C-l" => send_layout_message(|| ExpandMain),
 
-        // workspace / window cycling
+        // workspace / window cycling (Omarchy: Super+Ctrl+arrows)
         "M-Tab" => modify_with(|cs| cs.toggle_tag()),
+        "M-C-Right" => modify_with(|cs| cs.focus_next_workspace()),
+        "M-C-Left"  => modify_with(|cs| cs.focus_previous_workspace()),
         "M-bracketright" => modify_with(|cs| cs.next_screen()),
         "M-bracketleft" => modify_with(|cs| cs.previous_screen()),
         "M-grave" => modify_with(|cs| cs.next_layout()),
         "M-S-grave" => modify_with(|cs| cs.previous_layout()),
 
-        // window ops
+        // window ops (Omarchy: Super+F fullscreen, Super+Shift+F files,
+        // Super+V float, Super+W/Q close)
         "M-q" => modify_with(|cs| cs.kill_focused()),
-        "M-S-f" => toggle_fullscreen(),
-
-        // apps — Omarchy defaults
-        "M-Return" => spawn(TERMINAL),
-        "M-t" => spawn(TERMINAL),
-        "M-space" => spawn(LAUNCHER),
-        "M-b" => spawn("firefox"),
-        "M-f" => spawn("thunar"),
-
-        // floating toggle (Omarchy: Super+V)
+        "M-w" => modify_with(|cs| cs.kill_focused()),
+        "M-f" => toggle_fullscreen(),
         "M-v" => float_focused(),
         "M-S-v" => sink_focused(),
 
-        // session
-        "M-S-q" => exit(),
-        "M-Escape" => spawn("slock"),
-        "M-S-Escape" => spawn("doas zzz"),   // suspend (nopass via doas)
+        // apps — Omarchy muscle memory
+        "M-Return" => spawn(TERMINAL),
+        "M-space" => spawn(LAUNCHER),
+        "M-A-space" => spawn(MENU),                       // Omarchy: Super+Alt+Space
+        "M-b" => spawn("firefox"),
+        "M-S-b" => spawn("firefox --private-window"),
+        "M-S-f" => spawn("thunar"),
+        "M-n" => spawn("alacritty -e nvim"),              // editor
+        "M-t" => spawn("alacritty -e btop"),              // activity monitor
+        "M-y" => spawn("alacritty -e yazi"),              // TUI file manager
+        "M-g" => spawn("alacritty -e lazygit"),
+        "M-a" => spawn_sh("command -v aichat >/dev/null 2>&1 \
+            && exec alacritty -e aichat || exec rofi -e 'aichat not installed'"),
+        "M-c" => spawn("rofi -show calc -modi calc -no-show-match -no-sort"),
+        "M-slash" => spawn("vellum-menu keys"),           // keybinding sheet
 
-        // screenshot (Omarchy: Print)
-        "Print" => spawn_sh("maim \"$HOME/screenshot-$(date +%Y%m%d-%H%M%S).png\""),
+        // scratchpad (Omarchy: Super+S toggles a special workspace)
+        "M-s" => Box::new(toggle_nsp),
+
+        // session (Omarchy: Super+Esc menu, Ctrl+Alt+Del logout)
+        "M-Escape" => spawn("vellum-menu system"),
+        "M-S-Escape" => spawn("doas zzz"),                // suspend (nopass doas)
+        "C-A-l" => spawn("slock"),
+        "M-S-q" => exit(),
+
+        // capture (Omarchy: Print variants)
+        "Print"   => spawn("vellum-shot select"),
+        "S-Print" => spawn("vellum-shot window"),
+        "C-Print" => spawn("vellum-shot full"),
+        "M-Print" => spawn("vellum-shot color"),
 
         // media / brightness keys — FreeBSD-native tools (mixer(8) needs
         // the % suffix for relative steps; backlight(8) takes incr/decr)
         "XF86AudioRaiseVolume" => spawn("mixer vol=+5%"),
         "XF86AudioLowerVolume" => spawn("mixer vol=-5%"),
         "XF86AudioMute"        => spawn("mixer vol.mute=toggle"),
+        "XF86AudioMicMute"     => spawn("mixer mic.mute=toggle"),
+        "XF86AudioPlay"        => spawn("playerctl play-pause"),
+        "XF86AudioNext"        => spawn("playerctl next"),
+        "XF86AudioPrev"        => spawn("playerctl previous"),
         "XF86MonBrightnessUp"   => spawn("backlight incr 10"),
         "XF86MonBrightnessDown" => spawn("backlight decr 10"),
+        "XF86Calculator"        => spawn("rofi -show calc -modi calc -no-show-match -no-sort"),
     };
 
     for tag in &["1", "2", "3", "4", "5", "6", "7", "8", "9"] {
@@ -206,8 +248,19 @@ fn main() -> Result<()> {
     });
 
     let conn = RustConn::new()?;
-    let key_bindings = parse_keybindings_with_xmodmap(raw_key_bindings())?;
+
+    // Super+S scratchpad terminal — floats centred, hides to an invisible
+    // workspace when toggled off.
+    let (nsp, toggle_nsp) = NamedScratchPad::new(
+        "terminal",
+        "alacritty --class vellum-scratch -e sh",
+        ClassName("vellum-scratch"),
+        centre_float,
+        true,
+    );
+
+    let key_bindings = parse_keybindings_with_xmodmap(raw_key_bindings(toggle_nsp))?;
 
     let wm = WindowManager::new(config, key_bindings, mouse_bindings(), conn)?;
-    wm.run()
+    add_named_scratchpads(wm, vec![nsp]).run()
 }
