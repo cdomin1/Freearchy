@@ -26,6 +26,7 @@ jobs:
           release: "15.1"
           mem: 6144
           usesh: true
+          sync: sshfs
           copyback: true
           run: |
             set -ex
