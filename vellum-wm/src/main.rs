@@ -118,7 +118,7 @@ fn raw_key_bindings() -> HashMap<String, Box<dyn KeyEventHandler<RustConn>>> {
         "M-t" => spawn(TERMINAL),
         "M-space" => spawn(LAUNCHER),
         "M-b" => spawn("firefox"),
-        "M-f" => spawn("nemo"),
+        "M-f" => spawn("thunar"),
 
         // floating toggle (Omarchy: Super+V)
         "M-v" => penrose::builtin::actions::floating::float_focused(),

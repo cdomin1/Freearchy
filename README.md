@@ -40,7 +40,7 @@ polybar, wm border colors (next WM start) and wallpaper through the
 |---|---|
 | `Super`+Return / `Super`+T | alacritty |
 | `Super`+Space | rofi launcher |
-| `Super`+B / `Super`+F | firefox / nemo |
+| `Super`+B / `Super`+F | firefox / thunar |
 | `Super`+j/k/↓/↑ | focus · `Super`+Shift swap |
 | `Super`+1-9 / `Super`+Shift+1-9 | workspace / move to workspace |
 | `Super`+= / `Super`+- | resize main area |
