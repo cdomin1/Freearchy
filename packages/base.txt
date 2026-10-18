@@ -16,6 +16,7 @@ polkit
 pipewire
 wireplumber
 doas                   # lighter sudo alternative (security/doas)
+powerdxx               # adaptive CPU frequency scaling (powerd replacement)
 curl
 wget
 git-lite

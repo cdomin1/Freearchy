@@ -20,6 +20,10 @@ else
 fi
 xsetroot -cursor_name left_ptr 2>/dev/null
 
+# screen power: blank at 5m, DPMS standby/suspend/off at 10/15/20m
+xset s on; xset s 300
+xset +dpms; xset dpms 600 900 1200
+
 # notifications (dunst isn't ported; xfce4-notifyd is dbus-activated
 # anyway — this is just a safety net)
 /usr/local/libexec/xfce4/notifyd/xfce4-notifyd 2>/dev/null &

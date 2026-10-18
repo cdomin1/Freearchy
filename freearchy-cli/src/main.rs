@@ -7,6 +7,7 @@ mod install;
 mod install_system;
 mod install_tui;
 mod packages;
+mod power;
 mod theme;
 mod util;
 mod web_install;
@@ -64,6 +65,11 @@ enum Command {
         #[arg(long, default_value = "8080")]
         port: u16,
     },
+    /// Power profile: status, or set performance|balanced|power
+    Power {
+        #[command(subcommand)]
+        command: PowerCommand,
+    },
     /// Check the system for common problems
     Doctor,
     /// Build a bootable installer image
@@ -81,6 +87,14 @@ enum ThemeCommand {
     Set { name: String },
     /// Cycle to the next theme
     Next,
+}
+
+#[derive(Subcommand)]
+enum PowerCommand {
+    /// Show AC/battery, CPU freq, EPP hint, charge state
+    Status,
+    /// Apply a profile (devd calls this on AC events too)
+    Set { mode: String },
 }
 
 #[derive(Subcommand)]
@@ -112,6 +126,10 @@ fn main() -> Result<()> {
                 install_system::run(disk, hostname, user, yes)
             }
         }
+        Command::Power { command } => match command {
+            PowerCommand::Status => power::status(),
+            PowerCommand::Set { mode } => power::set(&mode),
+        },
         Command::Doctor => doctor::run(),
         Command::Image { command } => match command {
             ImageCommand::Build { release } => image::build(&release),

@@ -163,6 +163,16 @@ fn power_setup(repo: &Path) -> Result<()> {
         d.push_str("permit nopass :wheel cmd zzz\npermit nopass :wheel cmd acpiconf\n");
         fs::write(doas, d)?;
     }
+
+    // profile script + devd AC hook + adaptive CPU freq daemon
+    fs::create_dir_all("/usr/local/libexec")?;
+    fs::copy(repo.join("config/power/freearchy-power"), "/usr/local/libexec/freearchy-power")?;
+    fs::set_permissions("/usr/local/libexec/freearchy-power", fs::Permissions::from_mode(0o755))?;
+    fs::create_dir_all("/usr/local/etc/devd")?;
+    fs::copy(repo.join("config/power/devd.conf"), "/usr/local/etc/devd/freearchy-power.conf")?;
+    util::run("sysrc", &["powerdxx_enable=YES"])?;
+    let _ = util::run("service", &["powerdxx", "start"]);
+    let _ = util::run("/usr/local/libexec/freearchy-power", &["ac"]);
     Ok(())
 }
 

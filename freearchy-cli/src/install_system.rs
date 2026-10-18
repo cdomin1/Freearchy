@@ -383,7 +383,7 @@ fn system_files(spec: &InstallSpec) -> Result<()> {
         format!(
             "hostname=\"{}\"\nzfs_enable=\"YES\"\nsshd_enable=\"YES\"\n\
              keymap=\"{}\"\nifconfig_DEFAULT=\"SYNCDHCP\"\n\
-             freearchy_firstboot_enable=\"YES\"\n{}",
+             freearchy_firstboot_enable=\"YES\"\npowerdxx_enable=\"YES\"\n{}",
             spec.hostname, spec.keymap, kld
         ),
     )?;
@@ -440,6 +440,22 @@ fn sleep_setup() {
         use std::os::unix::fs::PermissionsExt;
         let _ = fs::set_permissions(&dst, fs::Permissions::from_mode(0o755));
     }
+    // power profile script + devd AC hook into the target
+    let _ = fs::create_dir_all(format!("{MNT}/usr/local/libexec"));
+    let _ = fs::create_dir_all(format!("{MNT}/usr/local/etc/devd"));
+    let _ = fs::write(
+        format!("{MNT}/usr/local/libexec/freearchy-power"),
+        include_str!("../../config/power/freearchy-power"),
+    );
+    use std::os::unix::fs::PermissionsExt;
+    let _ = fs::set_permissions(
+        format!("{MNT}/usr/local/libexec/freearchy-power"),
+        fs::Permissions::from_mode(0o755),
+    );
+    let _ = fs::write(
+        format!("{MNT}/usr/local/etc/devd/freearchy-power.conf"),
+        include_str!("../../config/power/devd.conf"),
+    );
 }
 
 fn create_user(spec: &InstallSpec, log: &dyn Fn(&str)) -> Result<()> {

@@ -1,0 +1,44 @@
+#!/bin/sh
+# freearchy-power — apply a power profile on FreeBSD.
+#   freearchy-power performance|balanced|power|ac|status
+# Called by devd on AC plug/unplug and by `freearchy power set`.
+set -u
+
+EPP_MIBS="dev.hwpstate_intel.0.epp dev.hwpstate_amd.0.epp"
+
+epp_set() {
+    for mib in $EPP_MIBS; do
+        if sysctl -n "$mib" >/dev/null 2>&1; then
+            sysctl "$mib=$1" >/dev/null 2>&1 && return 0
+        fi
+    done
+    return 1
+}
+
+wlan_ps() {
+    for i in $(sysctl -n net.wlan.devices 2>/dev/null); do
+        ifconfig "$i" "$1" >/dev/null 2>&1
+    done
+}
+
+case "${1:-status}" in
+    performance) epp_set performance;       wlan_ps -powersave ;;
+    balanced)    epp_set balance_performance; wlan_ps -powersave ;;
+    power)       epp_set power;             wlan_ps powersave ;;
+    ac) # devd hook — choose by mains state
+        if [ "$(sysctl -n hw.acpi.acline 2>/dev/null)" = "1" ]; then
+            "$0" balanced
+        else
+            "$0" power
+        fi
+        ;;
+    status)
+        echo "ac:     $(sysctl -n hw.acpi.acline 2>/dev/null)"
+        echo "freq:   $(sysctl -n dev.cpu.0.freq 2>/dev/null) MHz"
+        for mib in $EPP_MIBS; do
+            v=$(sysctl -n "$mib" 2>/dev/null) && echo "epp:    $v ($mib)" && break
+        done
+        acpiconf -i0 2>/dev/null | awk '/Remaining capacity|Present rate|State:/ {sub(/^ */,""); print "bat:    " $0}'
+        ;;
+    *) echo "usage: freearchy-power performance|balanced|power|ac|status" >&2; exit 1 ;;
+esac
