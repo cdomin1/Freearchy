@@ -26,6 +26,7 @@ const CHECKS: &[Check] = &[
     Check { name: "drm kms module loaded", run: kms_loaded },
     Check { name: "XDG_RUNTIME_DIR set", run: xdg_runtime_dir },
     Check { name: "hyprland config linked", run: hypr_config },
+    Check { name: "suspend support", run: sleep_state },
 ];
 
 fn bin(name: &str) -> CheckResult {
@@ -81,6 +82,26 @@ fn hypr_config() -> CheckResult {
         CheckResult::Ok(path.display().to_string())
     } else {
         CheckResult::Fail(format!("{} missing", path.display()))
+    }
+}
+
+fn sleep_state() -> CheckResult {
+    let states = ["kern.power.supported_stype", "hw.acpi.supported_sleep_states"]
+        .iter()
+        .find_map(|m| util::capture("sysctl", &["-n", m]));
+    let Some(s) = states else {
+        return CheckResult::Warn("no sleep-state sysctl (VM?)".into());
+    };
+    let supported: Vec<&str> = s.split_whitespace().collect();
+    let configured = util::capture("sysctl", &["-n", "hw.acpi.lid_switch_state"])
+        .unwrap_or_else(|| "?".into());
+    let detail = |st: &str| format!("{st} (lid={})", configured.trim());
+    if supported.contains(&"S3") {
+        CheckResult::Ok(detail("S3"))
+    } else if supported.iter().any(|t| t.eq_ignore_ascii_case("s2idle")) {
+        CheckResult::Ok(detail("s2idle"))
+    } else {
+        CheckResult::Fail(format!("no usable sleep state: {}", s.trim()))
     }
 }
 

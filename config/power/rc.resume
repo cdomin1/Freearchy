@@ -1,0 +1,13 @@
+#!/bin/sh
+# Freearchy /etc/rc.resume — runs as root right after the kernel wakes.
+# Devices routinely come back half-dead; bounce the usual suspects.
+
+# Wi-Fi (iwlwifi/rtw8x under linuxkpi) loses association across sleep —
+# bounce the interface and supplicant.
+service netif restart 2>/dev/null
+service wpa_supplicant restart 2>/dev/null
+
+# NVRAM clock can drift across suspend; ntpd will reslew on its own.
+service ntpd restart 2>/dev/null
+
+exit 0

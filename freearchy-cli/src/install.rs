@@ -117,7 +117,68 @@ fn system_setup() -> Result<()> {
     if let Some(user) = util::invoking_user() {
         let _ = util::run("pw", &["groupmod", "video", "-m", &user]);
     }
+
+    power_setup(repo)?;
     Ok(())
+}
+
+/// Suspend config for the live system: best sleep state into
+/// /etc/sysctl.conf (applied live too), rc.suspend/rc.resume hooks,
+/// and a nopass doas rule so Super+Shift+Esc can `zzz` unprivileged.
+fn power_setup(repo: &Path) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let state = best_sleep_state().unwrap_or_else(|| "NONE".into());
+    if state == "NONE" {
+        println!("==> no ACPI sleep states detected — skipping suspend config");
+        return Ok(());
+    }
+    println!("==> suspend: {state} (lid + sleep button)");
+
+    // sysctl.conf — append missing lines rather than clobber.
+    let sc = "/etc/sysctl.conf";
+    let mut text = fs::read_to_string(sc).unwrap_or_default();
+    for (k, v) in [
+        ("hw.acpi.lid_switch_state", state.as_str()),
+        ("hw.acpi.sleep_button_state", state.as_str()),
+    ] {
+        if !text.contains(k) {
+            text.push_str(&format!("{k}={v}\n"));
+        }
+        let _ = util::run("sysctl", &[&format!("{k}={v}")]);
+    }
+    fs::write(sc, text)?;
+
+    // suspend/resume hooks
+    for f in ["rc.suspend", "rc.resume"] {
+        let dst = format!("/etc/{f}");
+        fs::copy(repo.join(format!("config/power/{f}")), &dst)?;
+        fs::set_permissions(&dst, fs::Permissions::from_mode(0o755))?;
+    }
+
+    // wheel can suspend without a password (Omarchy-style convenience)
+    let doas = "/usr/local/etc/doas.conf";
+    let mut d = fs::read_to_string(doas).unwrap_or_default();
+    if !d.contains("cmd zzz") {
+        d.push_str("permit nopass :wheel cmd zzz\npermit nopass :wheel cmd acpiconf\n");
+        fs::write(doas, d)?;
+    }
+    Ok(())
+}
+
+fn best_sleep_state() -> Option<String> {
+    for mib in ["kern.power.supported_stype", "hw.acpi.supported_sleep_states"] {
+        if let Some(states) = util::capture("sysctl", &["-n", mib]) {
+            let s: Vec<&str> = states.split_whitespace().collect();
+            if s.contains(&"S3") {
+                return Some("S3".into());
+            }
+            if s.iter().any(|t| t.eq_ignore_ascii_case("s2idle")) {
+                return Some("s2idle".into());
+            }
+        }
+    }
+    None
 }
 
 /// Symlink repo-owned config into ~/.config (stow-style).

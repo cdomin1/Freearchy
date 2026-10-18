@@ -1,0 +1,18 @@
+#!/bin/sh
+# Freearchy /etc/rc.suspend — runs as root before the kernel sleeps.
+# (acpiconf -s N / zzz / lid close all funnel through this.)
+
+# Lock the X session before we go down — resuming to an unlocked
+# desktop otherwise. slock must grab the display while it's still up.
+for home in /home/*; do
+    user=${home##*/}
+    [ -d "$home" ] || continue
+    su -l "$user" -c "DISPLAY=:0 slock" 2>/dev/null &
+done
+
+# Give slock a moment to grab the X display before we suspend.
+sleep 0.3
+
+sync
+sync
+exit 0

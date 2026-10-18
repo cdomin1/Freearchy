@@ -387,6 +387,7 @@ fn system_files(spec: &InstallSpec) -> Result<()> {
             spec.hostname, spec.keymap, kld
         ),
     )?;
+    sleep_setup();
     // git identity — the wizard's email/fullname feed ~/.gitconfig
     if let Some(email) = &spec.email {
         let name = spec.fullname.as_deref().unwrap_or(&spec.username);
@@ -396,6 +397,49 @@ fn system_files(spec: &InstallSpec) -> Result<()> {
         )?;
     }
     Ok(())
+}
+
+/// Best suspend state this machine supports: real S3 (suspend-to-RAM)
+/// beats s2idle; s2idle is the only option on S0ix-only laptops.
+/// 15.x advertises via kern.power.supported_stype; older kernels via
+/// hw.acpi.supported_sleep_states.
+fn best_sleep_state() -> Option<String> {
+    for mib in ["kern.power.supported_stype", "hw.acpi.supported_sleep_states"] {
+        if let Some(states) = util::capture("sysctl", &["-n", mib]) {
+            let s: Vec<&str> = states.split_whitespace().collect();
+            if s.contains(&"S3") {
+                return Some("S3".into());
+            }
+            if s.iter().any(|t| t.eq_ignore_ascii_case("s2idle")) {
+                return Some("s2idle".into());
+            }
+        }
+    }
+    None
+}
+
+/// Persist suspend config in the target: lid/power/sleep-button go to
+/// the best state; rc.suspend/rc.resume carry the device workarounds.
+fn sleep_setup() {
+    let state = best_sleep_state().unwrap_or_else(|| "NONE".into());
+    let _ = fs::write(
+        format!("{MNT}/etc/sysctl.conf"),
+        format!(
+            "# Freearchy suspend config\n\
+             hw.acpi.lid_switch_state={state}\n\
+             hw.acpi.sleep_button_state={state}\n\
+             hw.acpi.power_button_state=S5\n"
+        ),
+    );
+    for (f, body) in [
+        ("rc.suspend", include_str!("../../config/power/rc.suspend")),
+        ("rc.resume", include_str!("../../config/power/rc.resume")),
+    ] {
+        let dst = format!("{MNT}/etc/{f}");
+        let _ = fs::write(&dst, body);
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(&dst, fs::Permissions::from_mode(0o755));
+    }
 }
 
 fn create_user(spec: &InstallSpec, log: &dyn Fn(&str)) -> Result<()> {

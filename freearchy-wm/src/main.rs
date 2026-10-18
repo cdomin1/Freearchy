@@ -127,6 +127,7 @@ fn raw_key_bindings() -> HashMap<String, Box<dyn KeyEventHandler<RustConn>>> {
         // session
         "M-S-q" => exit(),
         "M-Escape" => spawn("slock"),
+        "M-S-Escape" => spawn("doas zzz"),   // suspend (nopass via doas)
 
         // screenshot (Omarchy: Print)
         "Print" => spawn("maim $HOME/screenshot-$(date +%Y%m%d-%H%M%S).png"),
