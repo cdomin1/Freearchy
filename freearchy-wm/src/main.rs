@@ -39,13 +39,39 @@ use std::collections::HashMap;
 const TERMINAL: &str = "alacritty";
 const LAUNCHER: &str = "rofi -show drun";
 
-// --- Tokyo Night (Omarchy's palette) ---------------------------------------
-const TN_BG: u32 = 0x1a1b26ff;        // background
-const TN_FG: u32 = 0xc0caf5ff;        // foreground text
-const TN_ACCENT: u32 = 0x7aa2f7ff;    // blue accent — focused border / active ws
-const TN_GREY: u32 = 0x414868ff;      // unfocused border / empty ws
+// --- theme colors (Tokyo Night defaults; overridden by the active theme's
+//     wm.conf at ~/.config/freearchy/current/theme) ----------------------------
+const TN_ACCENT: u32 = 0x7aa2f7ff;    // blue accent — focused border
+const TN_GREY: u32 = 0x414868ff;      // unfocused border
 
 const BAR_HEIGHT_PX: u32 = 28; // reserved for polybar
+
+/// Parse `#rrggbb` -> 0xRRGGBBAA (opaque). None on anything else.
+fn hex_color(s: &str) -> Option<u32> {
+    let s = s.trim().strip_prefix('#')?;
+    u32::from_str_radix(s, 16).ok().filter(|_| s.len() == 6).map(|v| v << 8 | 0xff)
+}
+
+/// Read `focused`/`unfocused` hex colors from the theme symlink's wm.conf.
+fn theme_borders() -> (u32, u32) {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let path = format!("{home}/.config/freearchy/current/theme/wm.conf");
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        return (TN_ACCENT, TN_GREY);
+    };
+    let mut focused = TN_ACCENT;
+    let mut unfocused = TN_GREY;
+    for line in text.lines() {
+        let Some((k, v)) = line.split_once('=') else { continue };
+        let v = hex_color(v);
+        match (k.trim(), v) {
+            ("focused", Some(c)) => focused = c,
+            ("unfocused", Some(c)) => unfocused = c,
+            _ => {}
+        }
+    }
+    (focused, unfocused)
+}
 
 const MAX_MAIN: u32 = 1;
 const RATIO: f32 = 0.55;
@@ -160,10 +186,11 @@ fn main() -> Result<()> {
         .finish()
         .init();
 
+    let (focused, unfocused) = theme_borders();
     let config = add_ewmh_hooks(Config {
         border_width: BORDER_PX,
-        focused_border: TN_ACCENT,
-        unfocused_border: TN_GREY,
+        focused_border: focused,
+        unfocused_border: unfocused,
         default_layouts: layouts(),
         ..Config::default()
     });

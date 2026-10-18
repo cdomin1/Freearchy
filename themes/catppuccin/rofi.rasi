@@ -1,0 +1,9 @@
+// theme colors — sourced via freearchy theme symlink
+* {
+    bg:      #1e1e2e;
+    bg-alt:  #313244;
+    fg:      #cdd6f4;
+    fg-dim:  #6c7086;
+    accent:  #89b4fa;
+    urgent:  #f38ba8;
+}

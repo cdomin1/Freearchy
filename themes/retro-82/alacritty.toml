@@ -1,0 +1,32 @@
+# theme colors — sourced via freearchy theme symlink
+[colors.primary]
+background = "#05182e"
+foreground = "#f6dcac"
+
+[colors.cursor]
+text = "#05182e"
+cursor = "#f6dcac"
+
+[colors.selection]
+text = "#f6dcac"
+background = "#134e5a"
+
+[colors.normal]
+black   = "#020c17"
+red     = "#f85525"
+green   = "#028391"
+yellow  = "#e97b3c"
+blue    = "#3f8f8a"
+magenta = "#3f8f8a"
+cyan    = "#8cbfb8"
+white   = "#f6dcac"
+
+[colors.bright]
+black   = "#2a6b78"
+red     = "#f85525"
+green   = "#028391"
+yellow  = "#e97b3c"
+blue    = "#faa968"
+magenta = "#3f8f8a"
+cyan    = "#8cbfb8"
+white   = "#f6dcac"

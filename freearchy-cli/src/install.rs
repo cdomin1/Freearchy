@@ -16,7 +16,6 @@ pub fn run(no_packages: bool, dev: bool, no_shell: bool) -> Result<()> {
     link_configs(&repo)?;
     install_wm(&repo)?;
     install_picom(&repo)?;
-    gen_wallpaper()?;
     theme::set("tokyo-night")?;
 
     if !no_shell {
@@ -76,26 +75,6 @@ fn install_picom(repo: &Path) -> Result<()> {
     if !status.success() {
         // Non-fatal: a stock picom pkg or none still leaves a working session.
         eprintln!("    warn: picom build failed — session still works, no animations");
-    }
-    Ok(())
-}
-
-/// Generate the default wallpaper — a Tokyo Night gradient via ImageMagick.
-/// Non-fatal: xinitrc falls back to `xsetroot -solid` if it's absent.
-fn gen_wallpaper() -> Result<()> {
-    let dir = util::home()?.join(".local/share/freearchy");
-    fs::create_dir_all(&dir)?;
-    let wall = dir.join("wallpaper.png");
-    if wall.exists() {
-        return Ok(());
-    }
-    let status = std::process::Command::new("magick")
-        .args(["-size", "1920x1080", "gradient:#1a1b26-#24283b"])
-        .arg(&wall)
-        .status();
-    match status {
-        Ok(s) if s.success() => {}
-        _ => eprintln!("    warn: wallpaper generation skipped (magick missing?)"),
     }
     Ok(())
 }

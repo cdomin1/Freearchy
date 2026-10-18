@@ -1,4 +1,7 @@
-// Freearchy rofi — Tokyo Night (Omarchy palette)
+// Freearchy rofi — colors come from the active theme symlink:
+//   ~/.config/freearchy/current/theme/rofi.rasi
+@import "~/.config/freearchy/current/theme/rofi.rasi"
+
 configuration {
     font: "monospace 12";
     show-icons: true;
@@ -6,13 +9,6 @@ configuration {
 }
 
 * {
-    bg:      #1a1b26;
-    bg-alt:  #24283b;
-    fg:      #c0caf5;
-    fg-dim:  #565f89;
-    accent:  #7aa2f7;
-    urgent:  #f7768e;
-
     background-color: transparent;
     text-color: @fg;
 }

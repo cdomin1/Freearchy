@@ -51,9 +51,60 @@ pub fn set(name: &str) -> Result<()> {
     }
     symlink(&src, &link)?;
     println!("theme: {name}");
+    apply_wallpaper(&src, name);
     // Live-apply what we can; missing commands are fine outside a session.
     let _ = util::capture("hyprctl", &["reload"]);
+    let _ = util::capture("polybar-msg", &["cmd", "restart"]);
     Ok(())
+}
+
+/// Read a key from a theme's theme.toml (flat `key = "value"` lines).
+fn theme_key(src: &PathBuf, key: &str) -> Option<String> {
+    let text = fs::read_to_string(src.join("theme.toml")).ok()?;
+    for line in text.lines() {
+        if let Some((k, v)) = line.split_once('=') {
+            if k.trim() == key {
+                return Some(v.trim().trim_matches('"').to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Apply the theme's wallpaper: convert the shipped file to PNG via
+/// ImageMagick (feh/imlib2 webp support is unreliable), else render a
+/// gradient from the palette. Applies with feh if a session is up.
+fn apply_wallpaper(src: &PathBuf, name: &str) {
+    let Ok(home) = util::home() else { return };
+    let dir = home.join(".local/share/freearchy");
+    if fs::create_dir_all(&dir).is_err() { return }
+    let out = dir.join("wallpaper.png");
+
+    let shipped = theme_key(src, "wallpaper")
+        .filter(|w| !w.is_empty())
+        .map(|w| src.join(w))
+        .filter(|p| p.exists());
+
+    let ok = if let Some(file) = shipped {
+        std::process::Command::new("magick")
+            .arg(&file).arg(&out)
+            .status().map(|s| s.success()).unwrap_or(false)
+    } else {
+        let (from, to) = (
+            theme_key(src, "background").unwrap_or_else(|| "#1a1b26".into()),
+            theme_key(src, "lighter_background").unwrap_or_else(|| "#24283b".into()),
+        );
+        std::process::Command::new("magick")
+            .args(["-size", "1920x1080"])
+            .arg(format!("gradient:{from}-{to}"))
+            .arg(&out)
+            .status().map(|s| s.success()).unwrap_or(false)
+    };
+    if ok {
+        let _ = util::capture("feh", &["--bg-fill", &out.to_string_lossy()]);
+    } else {
+        eprintln!("    warn: wallpaper for {name} not applied (magick missing?)");
+    }
 }
 
 pub fn next() -> Result<()> {
