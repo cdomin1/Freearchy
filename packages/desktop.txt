@@ -1,6 +1,5 @@
 # Curated desktop apps (Omarchy-style selection, FreeBSD-ported).
 
-foot                      # terminal — caelestia's default
 firefox                   # browser
 thunar                    # file manager (GUI)
 yazi                      # file manager (TUI)

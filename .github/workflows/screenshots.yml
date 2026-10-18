@@ -1,0 +1,50 @@
+name: screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      theme:
+        description: "theme to shoot (default tokyo-night)"
+        default: tokyo-night
+      alt:
+        description: "second theme for the switch shot"
+        default: gruvbox
+  push:
+    branches: [main]
+    paths: ["vellum-wm/**", "config/x11/**", "themes/**", "scripts/screenshot.sh", ".github/workflows/screenshots.yml"]
+
+jobs:
+  shoot:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: build session + capture on FreeBSD
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "15.1"
+          mem: 6144
+          usesh: true
+          sync: "no"          # VM clones the repo itself; rsync sync is flaky
+          copyback: false
+          envs: VELLUM_SHOT_THEME VELLUM_SHOT_ALT
+          run: |
+            set -e
+            pkg install -y git
+            VELLUM_REPO=$HOME/vellum
+            git clone --depth 1 https://github.com/cdomin1/vellum.git "$VELLUM_REPO"
+            VELLUM_SHOT_THEME='${{ github.event.inputs.theme || 'tokyo-night' }}' \
+            VELLUM_SHOT_ALT='${{ github.event.inputs.alt || 'gruvbox' }}' \
+                sh "$VELLUM_REPO/scripts/screenshot.sh"
+
+      - name: pull screenshots out of the VM
+        run: |
+          mkdir -p shots
+          scp "freebsd:shots/*.png" shots/ || true
+          ls -la shots/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vellum-screenshots
+          path: shots/*.png
+          if-no-files-found: warn
