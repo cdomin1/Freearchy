@@ -11,7 +11,8 @@
 Theme-aware variants live in `themes/<name>/icon.png` and are reachable at
 runtime via `~/.config/vellum/current/theme/icon.png`.
 
-Regenerate after editing the mark:
+Regenerate after editing the mark (dev-side macOS — uses `qlmanage` to
+rasterize; swap for `rsvg-convert`/`inkscape` elsewhere):
 
 ```sh
 scripts/gen-icons.py    # icons/ + themes/*/icon.png

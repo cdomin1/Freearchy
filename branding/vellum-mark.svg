@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg id="vellum-mark" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 128 128">
-  <!-- VELLUM "Split V" mark: heavy left arm, slim right arm, narrow
-       diagonal slit between them that stops just short of the apex. -->
-  <path fill="#7aa2f7" d="M16 16 H56 L66 88 L74 16 H104 L64 112 Z"/>
+<svg id="vellum-mark" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="35.59 461.5 980.74 980.74">
+  <!-- VELLUM "Split V" mark — primary, solid. Original Illustrator
+       artwork (two paths: heavy left arm, slim right arm, slit between).
+       viewBox is cropped square around the artwork so it fills icon
+       tiles; keep path data identical to the source export. -->
+  <path fill="#7aa2f7" d="M649.92,1199.26l-318.59-542.77c-6.96-15.46-20.23-23.15-36.67-23.07l-222.75,1.02,167.48,289.83,198.28,344.62,175.03,1.5,37.22-71.12Z"/>
+  <path fill="#7aa2f7" d="M680.02,1152.72l299.98-517.88-214.88-1.47c-23.47-.16-43.28,8.19-51,32.14l-159.76,278.6,125.65,208.62Z"/>
 </svg>

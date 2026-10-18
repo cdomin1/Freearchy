@@ -1,105 +1,29 @@
 #!/usr/bin/env python3
 """Generate image/splash.png — the VELLUM boot splash.
 
-Rasterizes the real wordmark from branding/vellum-logo.svg (orthogonal
-M/v/h/z polygons) into a 32-bit RGBA PNG. The FreeBSD loader hands it to
-vt(4) via loader.conf `splash=` + `boot_mute=YES`; vt centers it on the
-framebuffer and requires 4 bytes/pixel (si_depth == 4).
+Rasterizes branding/vellum-splash.svg (mark + wordmark) via qlmanage.
+The FreeBSD loader hands the PNG to vt(4) via loader.conf `splash=` +
+`boot_mute=YES`; vt centers it on the framebuffer. Dev-side macOS step —
+on FreeBSD swap qlmanage for rsvg-convert/inkscape.
 Regenerate: python3 scripts/gen-splash.py
 """
-import re, struct, sys, zlib
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
 
-W, H = 560, 120         # tight canvas; vt centers it on any resolution
-FG = (122, 162, 247)    # #7aa2f7 tokyo-night accent (bg is transparent)
-MARGIN_X = 0.0
-MARGIN_Y = 0.0
-
-
-def polygons(svg):
-    """path d strings → polygon vertex lists (M/v/h/z only)."""
-    polys = []
-    for d in re.findall(r'\bd="([^"]+)"', svg):
-        toks = re.findall(r'[a-zA-Z]|-?\d+\.?\d*', d)
-        pts, x, y, i = [], 0.0, 0.0, 0
-        while i < len(toks):
-            cmd = toks[i]; i += 1
-            if cmd == 'M':
-                x, y = float(toks[i]), float(toks[i + 1]); i += 2
-                pts.append((x, y))
-            elif cmd == 'v':
-                y += float(toks[i]); i += 1
-                pts.append((x, y))
-            elif cmd == 'h':
-                x += float(toks[i]); i += 1
-                pts.append((x, y))
-            elif cmd == 'L':
-                x, y = float(toks[i]), float(toks[i + 1]); i += 2
-                pts.append((x, y))
-            elif cmd == 'l':
-                x += float(toks[i]); y += float(toks[i + 1]); i += 2
-                pts.append((x, y))
-            elif cmd == 'V':
-                y = float(toks[i]); i += 1
-                pts.append((x, y))
-            elif cmd == 'H':
-                x = float(toks[i]); i += 1
-                pts.append((x, y))
-            elif cmd.lower() == 'z':
-                pass
-        polys.append(pts)
-    return polys
+SRC = "branding/vellum-splash.svg"
+OUT = "image/splash.png"
+WIDTH = 560  # px; vt scales/centres on any resolution
 
 
-def main(src="branding/vellum-logo.svg", out="image/splash.png",
-         w=None, h=None):
-    if w:  # noqa: SIM115 — module constants are the defaults
-        globals()["W"] = int(w)
-    if h:
-        globals()["H"] = int(h)
-    polys = polygons(open(src).read())
-    xs = [p[0] for poly in polys for p in poly]
-    ys = [p[1] for poly in polys for p in poly]
-    sw, sh = max(xs) - min(xs), max(ys) - min(ys)
-    scale = min(W * (1 - 2 * MARGIN_X) / sw, H * (1 - 2 * MARGIN_Y) / sh)
-    ox = (W - sw * scale) / 2 - min(xs) * scale
-    oy = (H - sh * scale) / 2 - min(ys) * scale
-    polys = [[(x * scale + ox, y * scale + oy) for x, y in poly]
-             for poly in polys]
-
-    buf = bytearray(W * H)          # 0 = bg, 1 = fg
-    for y in range(H):
-        for x in range(W):
-            for poly in polys:
-                inside = False
-                j = len(poly) - 1
-                for i in range(len(poly)):
-                    xi, yi = poly[i]; xj, yj = poly[j]
-                    if (yi > y) != (yj > y) and \
-                       x < (xj - xi) * (y - yi) / (yj - yi) + xi:
-                        inside = not inside
-                    j = i
-                if inside:
-                    buf[y * W + x] = 1
-                    break
-
-    # RGBA8 PNG, non-interlaced (what the loader's pnglite decodes)
-    on, off = bytes((*FG, 255)), bytes(4)
-    raw = b"".join(b"\x00" + b"".join(on if buf[y * W + x] else off
-                                      for x in range(W))
-                   for y in range(H))
-
-    def chunk(tag, data):
-        return (struct.pack(">I", len(data)) + tag + data +
-                struct.pack(">I", zlib.crc32(tag + data) & 0xffffffff))
-
-    png = (b"\x89PNG\r\n\x1a\n" +
-           chunk(b"IHDR", struct.pack(">IIBBBBB", W, H, 8, 6, 0, 0, 0)) +
-           chunk(b"IDAT", zlib.compress(raw, 9)) +
-           chunk(b"IEND", b""))
-    with open(out, "wb") as f:
-        f.write(png)
-    print(f"wrote {out} ({len(png)} bytes, {W}x{H} RGBA, "
-          f"{sum(buf)} lit px, {len(polys)} letters)")
+def main(src=SRC, out=OUT, width=WIDTH):
+    with tempfile.TemporaryDirectory() as td:
+        subprocess.run(
+            ["qlmanage", "-t", "-s", str(width), src, "-o", td],
+            check=True, capture_output=True)
+        Path(td, Path(src).name + ".png").rename(out)
+    print(f"wrote {out}")
 
 
 if __name__ == "__main__":

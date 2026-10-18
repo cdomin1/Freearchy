@@ -1,32 +1,39 @@
 #!/usr/bin/env python3
-"""Generate the VELLUM "Split V" icon set from branding/vellum-mark.svg.
+"""Generate the VELLUM icon set from branding/vellum-mark.svg.
 
 Outputs:
   branding/icons/vellum-<size>.png        default accent, 16..256px
   themes/<name>/icon.png                  per-theme accent (128px) — reached
                                           via ~/.config/vellum/current/theme
+
+Rasterizes via qlmanage (macOS Quick Look): the mark uses cubic curves,
+so this is a dev-side macOS step. Run on FreeBSD? Swap qlmanage for
+rsvg-convert/inkscape in render().
 Regenerate: python3 scripts/gen-icons.py
 """
-import importlib.util
 import re
-import sys
+import subprocess
+import tempfile
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location(
-    "gen_splash", Path(__file__).parent / "gen-splash.py")
-g = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(g)
-
-MARK = "branding/vellum-mark.svg"
+MARK = Path("branding/vellum-mark.svg")
 SIZES = (16, 24, 32, 48, 64, 128, 256)
-DEFAULT = (122, 162, 247)  # tokyo-night #7aa2f7
+DEFAULT = "#7aa2f7"  # tokyo-night accent
 
 
-def render(size, rgb, out):
-    g.W = g.H = size
-    g.FG = rgb
-    g.MARGIN_X = g.MARGIN_Y = 0.10   # breathing room for app-icon use
-    g.main(MARK, out)
+def tinted(rgb_hex):
+    """Mark SVG with every fill recoloured."""
+    return re.sub(r'fill="[^"]*"', f'fill="{rgb_hex}"', MARK.read_text())
+
+
+def render(size, rgb_hex, out):
+    with tempfile.TemporaryDirectory() as td:
+        src = Path(td) / "mark.svg"
+        src.write_text(tinted(rgb_hex))
+        subprocess.run(
+            ["qlmanage", "-t", "-s", str(size), str(src), "-o", td],
+            check=True, capture_output=True)
+        Path(str(src) + ".png").rename(out)
 
 
 def main():
@@ -34,6 +41,7 @@ def main():
     out_dir.mkdir(exist_ok=True)
     for s in SIZES:
         render(s, DEFAULT, str(out_dir / f"vellum-{s}.png"))
+        print(f"  {out_dir}/vellum-{s}.png")
 
     # one 128px icon per theme, tinted by that theme's focused accent
     for theme in sorted(Path("themes").iterdir()):
@@ -43,8 +51,8 @@ def main():
         m = re.search(r"focused\s*=\s*#([0-9a-fA-F]{6})", wm.read_text())
         if not m:
             continue
-        rgb = tuple(int(m.group(1)[i:i + 2], 16) for i in (0, 2, 4))
-        render(128, rgb, str(theme / "icon.png"))
+        render(128, f"#{m.group(1)}", str(theme / "icon.png"))
+        print(f"  {theme}/icon.png")
 
 
 if __name__ == "__main__":
