@@ -16,7 +16,23 @@ binary written in Rust.
 | Session | `seatd` + `turnstile` | `XDG_RUNTIME_DIR` + seat management without systemd/elogind |
 | Tooling | `freearchy` CLI (Rust) | Single static binary, no bash-in-base dependency |
 
-## Quick start (on a fresh FreeBSD install)
+## Quick start — installer image (pre-alpha)
+
+Download `FreeBSD-15.1-RELEASE-amd64-memstick.img.xz` from the latest
+[release](https://github.com/cdomin1/Freearchy/releases), then write it to a
+USB stick:
+
+```sh
+unxz freearchy-*.img.xz
+dd if=freearchy-*.img of=/dev/daN bs=1m conv=sync   # or balenaEtcher
+```
+
+Boot it → the Freearchy wizard starts on the console: keymap → user →
+hostname → disk → erase-confirm → install → reboot. **Ethernet required**
+(no wifi provisioning in the live env yet — the installer fetches base dists
+and the freearchy payload from the network).
+
+## Quick start — on an existing FreeBSD install
 
 ```sh
 fetch https://raw.githubusercontent.com/cdomin1/Freearchy/main/boot.sh -o - | sh
