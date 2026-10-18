@@ -1,7 +1,27 @@
-# Testing freearchy — UTM (Apple Silicon)
+# Testing freearchy — Parallels (Apple Silicon)
 
 The fast loop is **stock FreeBSD VM → run `boot.sh` → fix what breaks**.
 Only bake the custom image once that path is green.
+
+Current rig: a Parallels FreeBSD 15.1 aarch64 VM, driven over SSH from macOS
+Terminal (`ssh carlos@<vm-ip>` — Parallels' console can't share the
+clipboard; new Terminal tabs land on the Mac, ssh'd tabs on the VM).
+SSH key at `~/.ssh/freearchy_vm`, `doas` configured (`permit nopass carlos`).
+
+## install-system test hooks
+
+The wizard's disk list and pool name can be overridden to exercise the full
+pipeline on a RAM disk without touching real storage:
+
+```sh
+mdconfig -a -t malloc -s 3g          # creates e.g. md3
+FREEARCHY_DISKS='md3:RAM Test Disk' FREEARCHY_POOL=zmd3 \
+    freearchy install-system         # as root
+```
+
+`FREEARCHY_POOL` also prevents colliding with a host that already imports a
+pool named `zroot` (any ZFS-rooted machine). The pipeline refuses to destroy
+a pool whose vdev isn't the selected disk.
 
 ## 1. Create the VM
 
@@ -98,11 +118,17 @@ Hyprland                       # from a getty, as your user
 - [ ] `freearchy theme set catppuccin-mocha` visibly re-themes borders/foot
 - [ ] Reboot → session still comes up clean
 
-## 6. Then the ISO
+## 6. The installer image
 
-`freearchy image build --release 15.1` (ARCH=aarch64 by default) produces a
-memstick `.img` — boot the *built* image in UTM the same way; the bsdinstall
-`installerconfig` auto-installs and first-boot runs freearchy.
+`image/build-image.sh` (default ARCH=amd64; the amd64 binary is built by the
+`iso` GitHub workflow on tag/dispatch) remasters the official memstick:
+`rc.local` runs `freearchy-install` per console → DHCP on all NICs →
+`freearchy install-system` TUI. Falls back to stock bsdinstall if the
+binary is absent. Live env needs **ethernet** (dists + payload are fetched;
+no wifi provisioning yet).
+
+Boot the built image the same way (UTM/Parallels from the .img, or dd to
+USB for real hardware).
 
 ## Alternatives
 
