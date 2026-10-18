@@ -133,8 +133,9 @@ fetch_font() {  # name url
     fi
 }
 # TODO: pin versions. Material Symbols variable TTF + Rubik from upstream repos.
-fetch_font "MaterialSymbolsVariable.ttf" \
-    "https://github.com/google/material-design-icons/raw/master/variablefont/MaterialSymbols%5BFILL%2CGRAD%2Copsz%2Cwght%5D.ttf"
+# Caelestia's icon font is Material Symbols Rounded (variable).
+fetch_font "MaterialSymbolsRounded.ttf" \
+    "https://github.com/google/material-design-icons/raw/master/variablefont/MaterialSymbolsRounded%5BFILL%2CGRAD%2Copsz%2Cwght%5D.ttf"
 fc-cache -f "$FONTS_DIR" >/dev/null 2>&1 || true
 
 # --- caelestia-cli ---------------------------------------------------------------

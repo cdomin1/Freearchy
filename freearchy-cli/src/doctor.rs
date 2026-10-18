@@ -42,10 +42,14 @@ fn rcvar(var: &str) -> CheckResult {
 }
 
 fn service(name: &str) -> CheckResult {
-    match util::capture("service", &[name, "status"]) {
-        Some(_) => CheckResult::Ok("running".into()),
-        None => CheckResult::Fail(format!("{name} not running")),
+    if util::capture("service", &[name, "status"]).is_some() {
+        return CheckResult::Ok("running".into());
     }
+    // Some rc.d scripts (seatd) don't implement `status` — check the table.
+    if util::capture("pgrep", &["-q", "-x", name]).is_some() {
+        return CheckResult::Ok("running".into());
+    }
+    CheckResult::Fail(format!("{name} not running"))
 }
 
 fn kms_loaded() -> CheckResult {

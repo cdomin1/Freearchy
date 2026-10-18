@@ -26,3 +26,6 @@ powerdxx?                 # power-profile-ish control via powerd
 # Fonts (verify availability; else installed as TTFs by build-shell.sh)
 cascadia-code
 noto
+
+# caelestia-cli install path (see build-shell.sh)
+py312-pipx?               # python-flavored name drifts — optional
