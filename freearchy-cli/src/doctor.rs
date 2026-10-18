@@ -14,7 +14,10 @@ enum CheckResult {
 }
 
 const CHECKS: &[Check] = &[
-    Check { name: "hyprland installed", run: || bin("hyprland") },
+    Check { name: "freearchy-wm installed", run: || bin("freearchy-wm") },
+    Check { name: "Xorg installed", run: || bin("Xorg") },
+    Check { name: "picom installed", run: || bin("picom") },
+    Check { name: "hyprland installed (wayland shelf)", run: || bin("hyprland") },
     Check { name: "quickshell installed", run: || bin("quickshell") },
     Check { name: "foot installed", run: || bin("foot") },
     Check { name: "seatd enabled", run: || rcvar("seatd_enable") },

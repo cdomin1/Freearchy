@@ -7,6 +7,7 @@ use crate::util;
 /// Package manifests, in install order.
 const MANIFESTS: &[&str] = &[
     "base.txt",
+    "xorg.txt",
     "hyprland.txt",
     "shell.txt",
     "desktop.txt",

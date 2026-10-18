@@ -22,6 +22,10 @@ freearchy_firstboot_start()
     FREEARCHY_HOME=/usr/local/freearchy \
         /usr/local/bin/cargo install --path /usr/local/freearchy/freearchy-cli \
         --root /usr/local
+    # The X11 tiler + the CLI both install; the cli drives the rest.
+    FREEARCHY_HOME=/usr/local/freearchy \
+        /usr/local/bin/cargo install --path /usr/local/freearchy/freearchy-wm \
+        --root /usr/local || true
     /usr/local/bin/freearchy install --dev || true
 
     # One-shot: don't run again.

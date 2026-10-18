@@ -1,0 +1,10 @@
+[package]
+name = "freearchy-wm"
+version = "0.1.0"
+edition = "2021"
+description = "Freearchy X11 tiling window manager (penrose-based)"
+license = "MIT"
+
+[dependencies]
+penrose = "0.4"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

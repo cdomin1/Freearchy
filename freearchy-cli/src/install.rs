@@ -14,6 +14,7 @@ pub fn run(no_packages: bool, dev: bool, no_shell: bool) -> Result<()> {
     }
     system_setup()?;
     link_configs(&repo)?;
+    install_wm(&repo)?;
     theme::set("tokyo-night")?;
 
     if !no_shell {
@@ -41,8 +42,24 @@ pub fn run(no_packages: bool, dev: bool, no_shell: bool) -> Result<()> {
         }
     }
 
-    println!("\nfreearchy installed. Log in via a getty and run `Hyprland`,");
-    println!("or install a display manager. Run `freearchy doctor` to verify.");
+    println!("\nfreearchy installed.");
+    println!("  X11 session (default): run `startx`  → freearchy-wm");
+    println!("  Wayland (shelved):     run `Hyprland` → Caelestia shell");
+    println!("Run `freearchy doctor` to verify.");
+    Ok(())
+}
+
+/// Build + install freearchy-wm (the X11 tiler) from this workspace.
+fn install_wm(repo: &Path) -> Result<()> {
+    println!("==> Building freearchy-wm");
+    if !util::on_path("cargo") {
+        eprintln!("    warn: cargo not on PATH — skipping freearchy-wm build");
+        return Ok(());
+    }
+    let path = repo.join("freearchy-wm");
+    util::run("cargo", &[
+        "install", "--path", &path.to_string_lossy(), "--root", "/usr/local",
+    ])?;
     Ok(())
 }
 
@@ -95,10 +112,14 @@ fn link_configs(repo: &Path) -> Result<()> {
     let pairs = [
         (repo.join("config/hyprland"), cfg.join("hypr")),
         (repo.join("config/foot"), cfg.join("foot")),
+        (repo.join("config/x11"), cfg.join("freearchy/x11")),
     ];
     for (src, dst) in pairs {
         link(&src, &dst)?;
     }
+    // startx entry point
+    let home = util::home()?;
+    link(&cfg.join("freearchy/x11/xinitrc"), &home.join(".xinitrc"))?;
     Ok(())
 }
 

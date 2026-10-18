@@ -11,9 +11,10 @@ binary written in Rust.
 | Layer | Choice | Why |
 |---|---|---|
 | Base OS | FreeBSD 15.x RELEASE | ZFS root + `bectl` boot environments = the Omarchy snapshot story, natively |
-| Compositor | Hyprland (`x11-wm/hyprland`) | Caelestia is Hyprland-native; Omarchy fidelity |
-| Shell | Caelestia (Quickshell), FreeBSD-patched | See `shell/PORTING.md` |
-| Session | `seatd` + `turnstile` | `XDG_RUNTIME_DIR` + seat management without systemd/elogind |
+| Window manager | `freearchy-wm` (Rust, penrose/X11) | Xorg needs no seatd/KMS handshake; inspired by end-4's X11 Hypr fork |
+| Compositor | picom | Rounded corners / shadows on X11 |
+| Shell | Caelestia (Quickshell), FreeBSD-patched | **Shelved** — Wayland-native; see `shell/PORTING.md` |
+| Wayland shelf | Hyprland + `seatd` | Kept installed; `Hyprland` still launches it |
 | Tooling | `freearchy` CLI (Rust) | Single static binary, no bash-in-base dependency |
 
 ## Quick start — installer image (pre-alpha)

@@ -356,14 +356,35 @@ fn boot_loader(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
     Ok(())
 }
 
+/// KMS module for the detected GPU — linuxkpi-backed drm-kmod drivers.
+/// pciconf: vga lines look like `vgapci0@pci0:0:2:0: class=0x030000 ... vendor=0x8086`
+fn kms_module() -> Option<&'static str> {
+    let pci = util::capture("pciconf", &["-lv"]).unwrap_or_default();
+    for line in pci.lines() {
+        if !(line.contains("class=0x030000") || line.contains("class=0x030200")) {
+            continue;
+        }
+        if line.contains("vendor=0x8086") {
+            return Some("i915kms");
+        }
+        if line.contains("vendor=0x1002") {
+            return Some("amdgpu");
+        }
+    }
+    None
+}
+
 fn system_files(spec: &InstallSpec) -> Result<()> {
+    let kld = kms_module()
+        .map(|m| format!("kld_list=\"{m}\"\n"))
+        .unwrap_or_default();
     fs::write(
         format!("{MNT}/etc/rc.conf"),
         format!(
             "hostname=\"{}\"\nzfs_enable=\"YES\"\nsshd_enable=\"YES\"\n\
              keymap=\"{}\"\nifconfig_DEFAULT=\"SYNCDHCP\"\n\
-             freearchy_firstboot_enable=\"YES\"\n",
-            spec.hostname, spec.keymap
+             freearchy_firstboot_enable=\"YES\"\n{}",
+            spec.hostname, spec.keymap, kld
         ),
     )?;
     // git identity — the wizard's email/fullname feed ~/.gitconfig
