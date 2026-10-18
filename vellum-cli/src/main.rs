@@ -17,7 +17,7 @@ mod web_install;
 #[command(
     name = "vellum",
     version,
-    about = "Opinionated Hyprland + Caelestia desktop for FreeBSD"
+    about = "Opinionated Omarchy-style X11 tiling desktop for FreeBSD"
 )]
 struct Cli {
     #[command(subcommand)]

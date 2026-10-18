@@ -33,8 +33,8 @@ a pool whose vdev isn't the selected disk.
   (Apple Silicon; x86 means full emulation, too slow to be useful)
 - UTM → New → **Virtualize** → **Other** → pick the ISO
 - 2+ vCPU, 4+ GB RAM, 20+ GB disk, shared (NAT) networking — pkg needs internet
-- Display device: leave the default **virtio-gpu** — FreeBSD's drm-kmod ships
-  a `virtio_gpu` driver; this is our best shot at a real Wayland session in-VM
+- Display device: leave the default **virtio-gpu** — X11 runs on the plain
+  framebuffer regardless; the X11 session is what we're testing in-VM
 
 ## 2. Install FreeBSD
 
@@ -89,33 +89,33 @@ there while the install runs in the VM. No display stack needed in the guest.
 
 ## 4. Getting a graphical session
 
-This is the risky step in any VM:
+The desktop is X11, so no DRM/KMS is required — Xorg runs on the plain
+framebuffer (scfb/efifb) in any VM:
 
 ```sh
-sysrc kld_list+=virtio_gpu     # from drm-kmod
-kldload virtio_gpu             # or reboot
-ls /dev/drm                    # want card0/renderD128 — no nodes = no Wayland
-service seatd start            # installer does this; verify anyway
-vellum doctor
-Hyprland                       # from a getty, as your user
+vellum doctor                  # check the stack installed cleanly
+startx                         # ~/.xinitrc → vellum-wm + picom + polybar
 ```
 
-- If `/dev/drm` nodes exist, Hyprland should come up (software GL is fine to start)
-- Whether FreeBSD's `virtio_gpu` attaches to the UTM/QEMU device on aarch64 is
-  the least-certain link in the chain — if no DRM nodes appear, everything
-  *except* the live session is still testable (packages, configs, themes,
-  doctor, the quickshell build), and compositor validation moves to real hw
-- Escape hatch: run Hyprland on its headless backend to smoke-test config
-  parse (`Hyprland` with a headless-capable backend env — verify current
-  variable name against the hyprland wiki)
+- `startx` should land you in vellum-wm: polybar on top, Tokyo Night
+  colors, gaps, animated window opens via picom
+- Super+Return → alacritty, Super+Space → rofi, Super+F → thunar,
+  Super+B → firefox
+- If Xorg can't find a display, `Xorg -configure` output + `/var/log/Xorg.0.log`
+  are the diagnosis path — but scfb covers Parallels/UTM/qemu framebuffer
+- Wayland shelf (real hardware only): if `/dev/drm` nodes exist on a
+  KMS-capable machine, `Hyprland` → Caelestia is still installed as a
+  secondary session. Not expected to work in VMs.
 
 ## 5. What "green" looks like (checklist)
 
 - [ ] `pkg` installs all required manifests with zero failures (trim strays)
 - [ ] `vellum doctor` — all checks ok after install
-- [ ] `quickshell -c caelestia` launches (even with stubbed services)
-- [ ] Hyprland session starts; foot + launcher binds work
-- [ ] `vellum theme set catppuccin-mocha` visibly re-themes borders/foot
+- [ ] `startx` → vellum-wm session with polybar, rofi, alacritty
+- [ ] picom animations visible on window open/close
+- [ ] `vellum theme set gruvbox` re-themes terminal/launcher/panel + wallpaper
+      (wm borders change on next `startx`)
+- [ ] Super+Shift+Esc suspends (real hw only), slock locks on Super+Esc
 - [ ] Reboot → session still comes up clean
 
 ## 6. The installer image
@@ -133,8 +133,8 @@ USB for real hardware).
 ## Alternatives
 
 - **Parallels** — easiest UX; virtio disk/NIC usually just work (`vtbd0`,
-  `vtnet0`). Caveat: its display isn't a KMS-capable device, so expect no
-  `/dev/drm` nodes → everything except the Hyprland session is testable.
+  `vtnet0`). Its display isn't KMS-capable so Wayland is out — but that's
+  fine, the X11 session needs only a framebuffer. Primary test rig.
 - **tart** (`brew install tart`) — free, CLI-only, Apple Virtualization.framework;
   nice for scripted/headless testing, graphics window support is thinner
 - **qemu via brew** — full control, but you reimplement half of UTM by hand

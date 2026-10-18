@@ -223,7 +223,6 @@ fn link_configs(repo: &Path) -> Result<()> {
 
     let pairs = [
         (repo.join("config/hyprland"), cfg.join("hypr")),
-        (repo.join("config/foot"), cfg.join("foot")),
         (repo.join("config/x11"), cfg.join("vellum/x11")),
         (repo.join("config/x11/rofi"), cfg.join("rofi")),
         (repo.join("config/x11/alacritty"), cfg.join("alacritty")),
