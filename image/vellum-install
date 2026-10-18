@@ -5,6 +5,11 @@
 
 export HOME=/root
 
+# boot_mute keeps the console muted into userland — unmute so the wizard
+# paints, then wipe the splash for a clean hand-off.
+conscontrol mute off >/dev/null 2>&1
+clear
+
 # Same TERM dance as startbsdinstall: xterm on vt consoles, ask on serial.
 kbdcontrol -d >/dev/null 2>&1
 if [ $? -eq 0 ]; then

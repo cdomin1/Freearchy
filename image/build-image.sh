@@ -73,11 +73,20 @@ sed -i '' 's|/usr/libexec/bsdinstall/startbsdinstall|/usr/local/bin/vellum-insta
 grep -q vellum-install "$WORK/mnt/etc/rc.local" \
     || { echo "!! rc.local patch did not apply" >&2; exit 1; }
 
-echo "==> Skipping the loader menu (straight to the TUI)"
+echo "==> Quiet boot: VELLUM splash, no loader menu (straight to the TUI)"
+# splash.png is generated from branding/vellum-logo.svg (scripts/gen-splash.py)
+mkdir -p "$WORK/mnt/boot/images"
+cp "$REPO/image/splash.png" "$WORK/mnt/boot/images/vellum-splash.png"
 {
     echo 'autoboot_delay="-1"'   # no menu, no countdown
     echo 'beastie_disable="YES"' # no FreeBSD logo/boot menu
+    echo 'loader_logo="none"'    # no logo in the loader either
+    echo 'boot_mute="YES"'       # hide kernel messages; vt shows the splash
+    echo 'splash="/boot/images/vellum-splash.png"'  # replaces the FreeBSD logo
 } >> "$WORK/mnt/boot/loader.conf"
+# silence "Starting foo..." rc chatter; first visible thing is the wizard
+grep -q rc_startmsgs "$WORK/mnt/etc/rc.conf" \
+    || echo 'rc_startmsgs="NO"' >> "$WORK/mnt/etc/rc.conf"
 
 sync
 umount "$WORK/mnt"
