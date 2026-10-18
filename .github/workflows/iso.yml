@@ -53,11 +53,14 @@ jobs:
             cargo build --release -p vellum
             strip target/release/vellum
             VELLUM_BIN="$PWD/target/release/vellum" sh image/build-image.sh 15.1
-            # upstream names the aarch64 image arm64-aarch64 — glob, don't
-            # reconstruct the filename
+            VELLUM_BIN="$PWD/target/release/vellum" sh image/build-iso.sh 15.1
+            # Target-based names: usb-installer = dd to a stick for bare
+            # metal; vm-installer = real bootable ISO for Parallels/UTM/VBox.
             IMG=$(ls FreeBSD-15.1-RELEASE-*-memstick.img | head -1)
-            xz -T0 "$IMG"
-            # Tag builds: create-or-reuse the release, upload the img.xz.
+            mv "$IMG" "vellum-15.1-${ARCH}-usb-installer.img"
+            xz -T0 "vellum-15.1-${ARCH}-usb-installer.img"
+            xz -T0 "vellum-15.1-${ARCH}-vm-installer.iso"
+            # Tag builds: create-or-reuse the release, upload the assets.
             if [ "$GITHUB_REF_TYPE" = "tag" ]; then
                 REPO=cdomin1/vellum
                 TAG="$GITHUB_REF_NAME"
@@ -71,17 +74,20 @@ jobs:
                         "$API/releases" | sed -n 's/.*"id": \([0-9]*\).*/\1/p' | head -1)
                 fi
                 [ -n "$RID" ] || { echo "!! could not create/get release" >&2; exit 1; }
-                # retagged builds: drop the stale asset so the upload doesn't 422
-                ASSET="vellum-15.1-${ARCH}-memstick.img.xz"
-                OLD=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" "$API/releases/$RID/assets" \
-                    | tr -d '\n' | tr '{' '\n' | grep "\"name\": *\"$ASSET\"" \
-                    | sed -n 's/.*"id": *\([0-9]*\).*/\1/p' | head -1)
-                [ -n "$OLD" ] && curl -sf -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
-                    "$API/releases/assets/$OLD" && echo "removed stale $ASSET"
-                curl -sf -X POST -H "Authorization: Bearer $GH_TOKEN" \
-                    -H "Content-Type: application/octet-stream" \
-                    --data-binary @"${IMG}.xz" \
-                    "https://uploads.github.com/repos/$REPO/releases/$RID/assets?name=vellum-15.1-${ARCH}-memstick.img.xz" \
-                    >/dev/null
-                echo "uploaded vellum-15.1-${ARCH}-memstick.img.xz to release $RID"
+                # retagged builds: drop stale assets so uploads don't 422
+                for ASSET in "vellum-15.1-${ARCH}-usb-installer.img.xz" \
+                             "vellum-15.1-${ARCH}-vm-installer.iso.xz"; do
+                    OLD=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" "$API/releases/$RID/assets" \
+                        | tr -d '\n' | tr '{' '\n' | grep "\"name\": *\"$ASSET\"" \
+                        | sed -n 's/.*"id": *\([0-9]*\).*/\1/p' | head -1)
+                    [ -n "$OLD" ] && curl -sf -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
+                        "$API/releases/assets/$OLD" && echo "removed stale $ASSET"
+                    FILE="${ASSET%.xz}"
+                    curl -sf -X POST -H "Authorization: Bearer $GH_TOKEN" \
+                        -H "Content-Type: application/octet-stream" \
+                        --data-binary @"${FILE}.xz" \
+                        "https://uploads.github.com/repos/$REPO/releases/$RID/assets?name=$ASSET" \
+                        >/dev/null
+                    echo "uploaded $ASSET to release $RID"
+                done
             fi

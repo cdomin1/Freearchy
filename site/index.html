@@ -56,9 +56,12 @@
     <div class="card"><h3>Keyboard-driven tiling</h3><p><code>vellum-wm</code> — a Rust tiling WM on penrose/x11rb. Omarchy keymap, workspaces 1–9, gaps, themed borders. No mouse required.</p></div>
     <div class="card"><h3>Animated X11</h3><p>picom 13 animates window open, close and tiling moves, with rounded corners and soft shadows. Runs on a plain framebuffer — works in VMs, no KMS handshake.</p></div>
     <div class="card"><h3>22 themes</h3><p>Every Omarchy palette ported. One command re-themes the terminal, launcher, panel, borders and wallpaper.</p></div>
-    <div class="card"><h3>Power that thinks</h3><p>AC/battery profiles via devd, adaptive CPU with powerdxx, ThinkPad charge thresholds, S3/s2idle suspend that locks before it sleeps.</p></div>
-    <div class="card"><h3>GPU autodetect</h3><p>Intel, AMD, NVIDIA &amp; hybrids detected at install. iGPU drives the desktop, <code>prime-run</code> hands work to the dGPU.</p></div>
+    <div class="card"><h3>Power that thinks</h3><p>AC/battery profiles via devd, adaptive CPU with powerdxx, ThinkPad charge thresholds, S3/s2idle suspend that locks before it sleeps. Lid, sleep button and <code>zzz</code> all covered.</p></div>
+    <div class="card"><h3>GPU autodetect</h3><p>Intel, AMD &amp; NVIDIA — including hybrids and five driver generations. The boot GPU drives the desktop, <code>prime-run</code> hands work to the dGPU.</p></div>
     <div class="card"><h3>TUI installer</h3><p>A ratatui wizard: disk → ZFS → user → done. Live logs, boot environments via <code>bectl</code>, first-boot setup.</p></div>
+    <div class="card"><h3>Connectivity</h3><p><code>vellum wifi</code> scans and joins networks; <code>vellum bt</code> drives the netgraph Bluetooth stack — scan, PIN pair, connect. Experimental, like the platform they ride on.</p></div>
+    <div class="card"><h3>Scratchpad &amp; menus</h3><p><code>Super+S</code> drops a floating terminal on any workspace. <code>Super+Alt+Space</code> opens rofi menus for system, theme, power, capture, network and Bluetooth.</p></div>
+    <div class="card"><h3>ArtCraft</h3><p>Storytold's AI studio builds on FreeBSD via <code>scripts/install-artcraft.sh</code> — the pure-Rust egui app, no Tauri. Experimental, bundled by build script.</p></div>
   </div>
 </section>
 
@@ -84,12 +87,18 @@
   <div class="keys">
     <div><kbd>Super</kbd>+<kbd>⏎</kbd><span>terminal</span></div>
     <div><kbd>Super</kbd>+<kbd>Space</kbd><span>launcher</span></div>
+    <div><kbd>Super</kbd>+<kbd>⌥</kbd>+<kbd>Space</kbd><span>menus</span></div>
     <div><kbd>Super</kbd>+<kbd>B</kbd><span>browser</span></div>
-    <div><kbd>Super</kbd>+<kbd>F</kbd><span>files</span></div>
+    <div><kbd>Super</kbd>+<kbd>⇧</kbd>+<kbd>F</kbd><span>files</span></div>
+    <div><kbd>Super</kbd>+<kbd>F</kbd><span>fullscreen</span></div>
+    <div><kbd>Super</kbd>+<kbd>S</kbd><span>scratchpad</span></div>
+    <div><kbd>Super</kbd>+<kbd>T</kbd><span>monitor</span></div>
     <div><kbd>Super</kbd>+<kbd>Q</kbd><span>close</span></div>
     <div><kbd>Super</kbd>+<kbd>1–9</kbd><span>workspaces</span></div>
-    <div><kbd>Super</kbd>+<kbd>Esc</kbd><span>lock</span></div>
+    <div><kbd>Super</kbd>+<kbd>/</kbd><span>all keys</span></div>
+    <div><kbd>Super</kbd>+<kbd>Esc</kbd><span>power menu</span></div>
     <div><kbd>Super</kbd>+<kbd>⇧</kbd>+<kbd>Esc</kbd><span>suspend</span></div>
+    <div><kbd>Print</kbd><span>screenshot</span></div>
   </div>
 </section>
 
@@ -119,6 +128,20 @@
     <div class="chip" style="--c:#798186">solitude</div>
     <div class="chip" style="--c:#8d8d8d">vantablack</div>
     <div class="chip light" style="--c:#6e6e6e">white</div>
+  </div>
+</section>
+
+<section id="get">
+  <h2>Get the image</h2>
+  <p class="center-dim">Named by install target — pick yours:</p>
+  <div class="keys">
+    <div><kbd>usb</kbd><span><code>amd64-usb-installer.img.xz</code> — PC / ThinkPad / Intel Mac</span></div>
+    <div><kbd>iso</kbd><span><code>amd64-vm-installer.iso.xz</code> — x86 VMs</span></div>
+    <div><kbd>usb</kbd><span><code>aarch64-usb-installer.img.xz</code> — arm64 hardware</span></div>
+    <div><kbd>iso</kbd><span><code>aarch64-vm-installer.iso.xz</code> — Parallels / UTM on Apple Silicon</span></div>
+  </div>
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/cdomin1/vellum/releases">Downloads</a>
   </div>
 </section>
 

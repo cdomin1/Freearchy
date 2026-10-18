@@ -2,7 +2,7 @@
 # Build a bootable Vellum installer image.
 #
 # Fetches the official FreeBSD memstick .img, attaches it via md(4), then
-# injects:
+# runs the shared injection (image/inject.sh):
 #   - /usr/local/bin/vellum          prebuilt CLI (if VELLUM_BIN set)
 #   - /usr/local/bin/vellum-install  console launcher (replaces bsdinstall)
 #   - patched /etc/rc.local             runs our launcher via runconsoles
@@ -26,6 +26,7 @@ esac
 BASE_URL="https://download.freebsd.org/releases/ISO-IMAGES/${RELEASE}"
 WORK="$(mktemp -d /tmp/vellum-image.XXXXXX)"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
+. "$REPO/image/inject.sh"
 
 cleanup() {
     umount "$WORK/mnt" 2>/dev/null || true
@@ -54,39 +55,7 @@ fi
 [ -n "$UFS_PART" ] || { echo "!! no freebsd-ufs partition on $MD" >&2; exit 1; }
 mount -o rw "/dev/$UFS_PART" "$WORK/mnt"
 
-echo "==> Injecting vellum launcher"
-mkdir -p "$WORK/mnt/usr/local/bin"
-cp "$REPO/image/vellum-install" "$WORK/mnt/usr/local/bin/vellum-install"
-chmod 755 "$WORK/mnt/usr/local/bin/vellum-install"
-
-if [ -n "$VELLUM_BIN" ] && [ -f "$VELLUM_BIN" ]; then
-    echo "==> Embedding vellum binary ($VELLUM_BIN)"
-    cp "$VELLUM_BIN" "$WORK/mnt/usr/local/bin/vellum"
-    chmod 755 "$WORK/mnt/usr/local/bin/vellum"
-else
-    echo "!! VELLUM_BIN unset — image will fall back to stock bsdinstall"
-fi
-
-echo "==> Pointing rc.local at the vellum installer"
-sed -i '' 's|/usr/libexec/bsdinstall/startbsdinstall|/usr/local/bin/vellum-install|g' \
-    "$WORK/mnt/etc/rc.local"
-grep -q vellum-install "$WORK/mnt/etc/rc.local" \
-    || { echo "!! rc.local patch did not apply" >&2; exit 1; }
-
-echo "==> Quiet boot: VELLUM splash, no loader menu (straight to the TUI)"
-# splash.png is generated from branding/vellum-logo.svg (scripts/gen-splash.py)
-mkdir -p "$WORK/mnt/boot/images"
-cp "$REPO/image/splash.png" "$WORK/mnt/boot/images/vellum-splash.png"
-{
-    echo 'autoboot_delay="-1"'   # no menu, no countdown
-    echo 'beastie_disable="YES"' # no FreeBSD logo/boot menu
-    echo 'loader_logo="none"'    # no logo in the loader either
-    echo 'boot_mute="YES"'       # hide kernel messages; vt shows the splash
-    echo 'splash="/boot/images/vellum-splash.png"'  # replaces the FreeBSD logo
-} >> "$WORK/mnt/boot/loader.conf"
-# silence "Starting foo..." rc chatter; first visible thing is the wizard
-grep -q rc_startmsgs "$WORK/mnt/etc/rc.conf" \
-    || echo 'rc_startmsgs="NO"' >> "$WORK/mnt/etc/rc.conf"
+inject_vellum "$WORK/mnt"
 
 sync
 umount "$WORK/mnt"

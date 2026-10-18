@@ -19,8 +19,9 @@ is the one that ships.
 | Launcher | rofi | `Super+Space`, themed from the active palette |
 | Terminal | alacritty | `Super+Return`, themed |
 | Notifications | xfce4-notifyd | dunst isn't ported |
-| Lock / shots | slock · maim | `Super+Esc` / `Print` |
-| Tooling | `vellum` CLI (Rust) | install / update / theme / power / doctor / image / install-system |
+| Lock / shots | slock · xautolock · maim | lock on suspend/idle · `Print` variants |
+| Menus | `vellum-menu` (rofi) | system/theme/power/capture/network/bluetooth/keys |
+| Tooling | `vellum` CLI (Rust) | install / update / theme / power / doctor / image / install-system / bt / wifi |
 | Wayland shelf | Hyprland + Caelestia (Quickshell) | Installed, still launchable; X11 is the supported session |
 
 ## Themes
@@ -38,22 +39,33 @@ polybar, wm border colors (next WM start) and wallpaper through the
 
 | Keys | Action |
 |---|---|
-| `Super`+Return / `Super`+T | alacritty |
-| `Super`+Space | rofi launcher |
-| `Super`+B / `Super`+F | firefox / thunar |
-| `Super`+j/k/↓/↑ | focus · `Super`+Shift swap |
+| `Super`+Return / `Super`+Space | alacritty · rofi launcher |
+| `Super`+Alt+Space · `Super`+/ | vellum-menu · keybinding sheet |
+| `Super`+B / `Super`+Shift+B | firefox · private window |
+| `Super`+Shift+F / `Super`+Y | thunar · yazi |
+| `Super`+N / `Super`+T / `Super`+G | nvim · btop · lazygit |
+| `Super`+A / `Super`+C | aichat · rofi calculator |
+| `Super`+j/k/↓/↑ | focus · `Super`+Shift swap · `Super`+h/l main-count |
 | `Super`+1-9 / `Super`+Shift+1-9 | workspace / move to workspace |
+| `Super`+Ctrl+←/→ · `Super`+Tab | prev/next workspace · last workspace |
 | `Super`+= / `Super`+- | resize main area |
-| `Super`+Q · `Super`+V · `Super`+Shift+F | close · float · fullscreen |
-| `Super`+Esc / `Super`+Shift+Esc | lock (slock) / suspend (`zzz`) |
-| `XF86` media keys | `mixer` volume, `backlight` brightness |
-| `Print` | screenshot via maim |
+| `Super`+F / `Super`+V | fullscreen · float (`Super`+Shift+V sink) |
+| `Super`+S | scratchpad terminal |
+| `Super`+Q · `Super`+W | close window |
+| `Super`+Esc / `Super`+Shift+Esc | system menu · suspend (`zzz`) |
+| `Ctrl`+`Alt`+L / `Super`+Shift+Q | lock · log out |
+| `Print` / `Shift`+Print / `Ctrl`+Print | shot region · window · full |
+| `Super`+Print | colour picker → clipboard |
+| `XF86` media keys | `mixer` volume, `backlight`, playerctl |
 
 ## Power & sleep
 
 - **Suspend**: auto-detects `S3` vs `s2idle` (the S0ix path for modern
-  laptops); lid/sleep-button wired in sysctl.conf. `rc.suspend` grabs
-  slock before sleeping, `rc.resume` bounces netif/wpa/ntpd.
+  laptops); `hw.acpi.suspend_state`/`lid_switch_state`/`sleep_button_state`
+  written into sysctl.conf (lid → laptop suspend, sleep button → desktop).
+  `rc.suspend` locks the *session owner's* X session via slock before
+  sleeping; `rc.resume` bounces netif/wpa, BT controllers, EPP profile
+  and ntpd. `xautolock` gives the idle-lock (xss-lock needs logind).
 - **Profiles**: `vellum power set performance|balanced|power` — HWP EPP
   hints + wifi powersave. A `devd` hook auto-switches balanced/power on
   AC plug/unplug (the power-profiles-daemon equivalent). `powerdxx`
@@ -64,20 +76,55 @@ polybar, wm border colors (next WM start) and wallpaper through the
 
 ## GPU support
 
-pciconf-based detection at install: Intel→`i915kms`, AMD→`amdgpu`,
-NVIDIA→`nvidia-driver` (proprietary; amd64). `kld_list` covers everything
-found; an xorg.conf.d pin keeps hybrid laptops on the iGPU.
-**Hybrid offload**: `prime-run <cmd>` (DRI_PRIME + `__NV_PRIME_RENDER_OFFLOAD`).
-`vellum doctor` reports detected GPUs vs. loaded kmods.
+Per-device pciconf detection at install: Intel→`i915kms`, AMD→`amdgpu`
+(SI/CIK → `radeonkms` via a codename table + a runtime probe that retries
+and fixes kld_list), NVIDIA→branch-matched proprietary driver
+(595/580→`nvidia-modeset`+`nvidia-drm` with `hw.nvidiadrm.modeset=1`;
+470→modeset; 390/340→`nvidia`). `kld_list` covers every adapter; the boot
+VGA (`hw.pci.default_vgapci_unit`) gets the xorg.conf.d pin.
+**Hybrid offload**: `prime-run <cmd>` reads the detected GPU's env
+(DRI_PRIME pci tag or `__NV_PRIME_RENDER_OFFLOAD`).
+**VMs/no-KMS**: no pin written — Xorg falls back to `scfb` framebuffer.
+`vellum doctor` reports every adapter: driver bound, session/offload role.
+
+## Bluetooth & Wi-Fi (experimental)
+
+- `vellum bt on|status|scan|pair <bdaddr> [--pin 0000]|connect|disconnect` —
+  netgraph/hccontrol front-end. Intel/Realtek firmware comes from
+  `iwmbt-firmware`/`rtlbt-firmware`; audio devices surface via
+  `virtual_oss` under `/dev/bluetooth/*`. BLE is limited on FreeBSD.
+- `vellum wifi status|scan|connect <ssid> [pass]` — ifconfig/wpa_supplicant
+  front-end. LinuxKPI wifi drivers are the usual FreeBSD caveat.
+- Both are also reachable via `vellum-menu` → Network/Bluetooth.
+
+## ArtCraft (experimental)
+
+[ArtCraft](https://github.com/storytold/artcraft) — the pure-Rust egui
+desktop app (`artcraft_native`) — builds from source on FreeBSD:
+
+```sh
+sh scripts/install-artcraft.sh
+```
+
+No Tauri/WebKit path — upstream ships no FreeBSD binaries, so expect
+rough edges; it's a source build, not a bundled pkg.
 
 ## Quick start — installer image (pre-alpha)
 
-Download `vellum-15.1-amd64-memstick.img.xz` from the latest
-[release](https://github.com/cdomin1/vellum/releases), write to USB:
+Assets on the latest
+[release](https://github.com/cdomin1/vellum/releases) are named by
+install target:
+
+| File | Use |
+|---|---|
+| `vellum-15.1-amd64-usb-installer.img.xz` | PC / ThinkPad / Intel Mac — `dd` to USB |
+| `vellum-15.1-amd64-vm-installer.iso.xz` | x86 VMs (VirtualBox/VMware/QEMU/bhyve) — attach as CD |
+| `vellum-15.1-aarch64-usb-installer.img.xz` | bare-metal arm64 |
+| `vellum-15.1-aarch64-vm-installer.iso.xz` | **Parallels/UTM on Apple Silicon** — attach as CD |
 
 ```sh
-unxz vellum-*.img.xz
-dd if=vellum-*.img of=/dev/daN bs=1m conv=sync   # or balenaEtcher
+unxz vellum-*-installer.*
+dd if=vellum-*-usb-installer.img of=/dev/daN bs=1m conv=sync   # USB only
 ```
 
 Boot → quiet VELLUM splash → the wizard runs on the console: keymap → user
@@ -107,12 +154,14 @@ vellum-wm/    X11 tiling WM (penrose/x11rb) — the desktop core
 vellum-bt/    BlueZ-compatible D-Bus daemon over FreeBSD HCI (scaffold)
 packages/     pkg manifests (base, xorg, hyprland*, shell*, desktop, dev, ai†)
 config/x11/   xinitrc, picom.conf, rofi, alacritty, polybar (+ scripts), gtk, prime-run
+              bin/: vellum-menu (rofi system menus), vellum-shot (screenshots)
 config/power/ rc.suspend/rc.resume, devd AC hook, profile script
 config/hyprland/  Wayland session (shelved)
 themes/       22 Omarchy palettes + wallpapers
-image/        Bootable memstick-image builder, splash, first-boot service
+image/        image + ISO builders (shared inject.sh), splash, first-boot service
               (CI: .github/workflows/iso.yml)
-scripts/      gen-splash.py (boot splash from the logo), screenshot.sh (CI)
+scripts/      gen-splash.py (boot splash from the logo), screenshot.sh (CI),
+              install-artcraft.sh (experimental)
 site/         Landing page (GitHub Pages)
 shell/        Caelestia FreeBSD port notes (shelved)
 docs/         roadmap + testing notes
