@@ -14,8 +14,9 @@ permissions:
 
 jobs:
   iso:
-    # vmactions needs an Intel macOS runner for amd64 FreeBSD.
-    runs-on: macos-13
+    # vmactions needs an Intel macOS runner for amd64 FreeBSD;
+    # macos-15-intel is the post-macos-13-retirement Intel label.
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
 
