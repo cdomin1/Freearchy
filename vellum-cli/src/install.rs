@@ -234,6 +234,20 @@ fn link_configs(repo: &Path) -> Result<()> {
     let home = util::home()?;
     link(&cfg.join("vellum/x11/xinitrc"), &home.join(".xinitrc"))?;
     link(&cfg.join("vellum/x11/gtkrc-2.0"), &home.join(".gtkrc-2.0"))?;
+
+    // hicolor icon set + desktop entry so `vellum-menu` shows in rofi drun
+    let icons = home.join(".local/share/icons/hicolor");
+    for size in [16, 24, 32, 48, 64, 128, 256] {
+        let src = repo.join(format!("branding/icons/vellum-{size}.png"));
+        let dst = icons.join(format!("{size}x{size}/apps/vellum.png"));
+        if src.exists() {
+            link(&src, &dst)?;
+        }
+    }
+    link(
+        &repo.join("config/x11/applications/vellum-menu.desktop"),
+        &home.join(".local/share/applications/vellum-menu.desktop"),
+    )?;
     Ok(())
 }
 

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Vellum Menu
+Comment=System menus — theme, power, capture, network, bluetooth
+Exec=vellum-menu
+Icon=vellum
+Categories=System;Settings;

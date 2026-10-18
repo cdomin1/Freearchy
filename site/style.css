@@ -17,6 +17,8 @@ nav{display:flex;align-items:center;justify-content:space-between;
   padding:1rem 2rem;border-bottom:1px solid var(--bg-light);
   position:sticky;top:0;background:var(--bg);z-index:10}
 .nav-logo{height:1.4rem;fill:var(--fg-bright)}
+.nav-mark{height:1.6rem}
+.hero-mark{width:96px;display:block;margin:0 auto 1rem}
 .nav-links{display:flex;gap:1.5rem}
 .nav-links a{color:var(--fg-dim);text-decoration:none;font-size:.85rem}
 .nav-links a:hover{color:var(--accent)}

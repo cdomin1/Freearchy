@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="vellum-mark" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 128 128">
+  <!-- VELLUM "Split V" mark: heavy left arm, slim right arm, narrow
+       diagonal slit between them that stops just short of the apex. -->
+  <path fill="#7aa2f7" d="M16 16 H56 L66 88 L74 16 H104 L64 112 Z"/>
+</svg>

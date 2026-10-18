@@ -11,13 +11,14 @@ import re, struct, sys, zlib
 
 W, H = 560, 120         # tight canvas; vt centers it on any resolution
 FG = (122, 162, 247)    # #7aa2f7 tokyo-night accent (bg is transparent)
+MARGIN_X = 0.0
 MARGIN_Y = 0.0
 
 
 def polygons(svg):
     """path d strings → polygon vertex lists (M/v/h/z only)."""
     polys = []
-    for d in re.findall(r'<path d="([^"]+)"', svg):
+    for d in re.findall(r'\bd="([^"]+)"', svg):
         toks = re.findall(r'[a-zA-Z]|-?\d+\.?\d*', d)
         pts, x, y, i = [], 0.0, 0.0, 0
         while i < len(toks):
@@ -31,6 +32,12 @@ def polygons(svg):
             elif cmd == 'h':
                 x += float(toks[i]); i += 1
                 pts.append((x, y))
+            elif cmd == 'L':
+                x, y = float(toks[i]), float(toks[i + 1]); i += 2
+                pts.append((x, y))
+            elif cmd == 'l':
+                x += float(toks[i]); y += float(toks[i + 1]); i += 2
+                pts.append((x, y))
             elif cmd == 'V':
                 y = float(toks[i]); i += 1
                 pts.append((x, y))
@@ -43,12 +50,17 @@ def polygons(svg):
     return polys
 
 
-def main(src="branding/vellum-logo.svg", out="image/splash.png"):
+def main(src="branding/vellum-logo.svg", out="image/splash.png",
+         w=None, h=None):
+    if w:  # noqa: SIM115 — module constants are the defaults
+        globals()["W"] = int(w)
+    if h:
+        globals()["H"] = int(h)
     polys = polygons(open(src).read())
     xs = [p[0] for poly in polys for p in poly]
     ys = [p[1] for poly in polys for p in poly]
     sw, sh = max(xs) - min(xs), max(ys) - min(ys)
-    scale = min(W / sw, H * (1 - 2 * MARGIN_Y) / sh)
+    scale = min(W * (1 - 2 * MARGIN_X) / sw, H * (1 - 2 * MARGIN_Y) / sh)
     ox = (W - sw * scale) / 2 - min(xs) * scale
     oy = (H - sh * scale) / 2 - min(ys) * scale
     polys = [[(x * scale + ox, y * scale + oy) for x, y in poly]
