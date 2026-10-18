@@ -26,6 +26,12 @@ wifi-firmware-rtw89-kmod?
 wifi-firmware-ath10k-kmod?
 wifi-firmware-ath11k-kmod?
 wifi-firmware-mt76-kmod?
+
+# bluetooth: ng_ubt is in base; these carry the Intel/Realtek dongle
+# firmware and the audio bridge (Bluetooth audio → /dev/bluetooth/*)
+iwmbt-firmware?          # comms/iwmbt-firmware — Intel AX200/AX210 etc.
+rtlbt-firmware?          # comms/rtlbt-firmware — Realtek
+virtual_oss?             # audio/virtual_oss — BT audio devices for the desktop
 curl
 wget
 git-lite

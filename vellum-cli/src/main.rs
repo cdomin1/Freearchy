@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
+mod bt;
 mod doctor;
 mod gpu;
 mod image;
@@ -12,6 +13,7 @@ mod power;
 mod theme;
 mod util;
 mod web_install;
+mod wifi;
 
 #[derive(Parser)]
 #[command(
@@ -73,6 +75,16 @@ enum Command {
     },
     /// Check the system for common problems
     Doctor,
+    /// Bluetooth (EXPERIMENTAL): netgraph/hccontrol front-end
+    Bt {
+        #[command(subcommand)]
+        command: BtCommand,
+    },
+    /// Wi-Fi (EXPERIMENTAL): ifconfig/wpa_supplicant front-end
+    Wifi {
+        #[command(subcommand)]
+        command: WifiCommand,
+    },
     /// Build a bootable installer image
     Image {
         #[command(subcommand)]
@@ -105,6 +117,34 @@ enum PowerCommand {
         #[arg(long)]
         stop: Option<u8>,
     },
+}
+
+#[derive(Subcommand)]
+enum BtCommand {
+    /// Load ng_ubt, start the bluetooth service + hcsecd
+    On,
+    /// Stop the bluetooth service
+    Off,
+    /// Controller + service state
+    Status,
+    /// Inquiry scan — prints bdaddr + device class
+    Scan,
+    /// Register a PIN with hcsecd and open the connection
+    Pair { bdaddr: String, #[arg(long, default_value = "0000")] pin: String },
+    /// Open a baseband connection to a paired device
+    Connect { bdaddr: String },
+    /// Drop a connection
+    Disconnect { bdaddr: String },
+}
+
+#[derive(Subcommand)]
+enum WifiCommand {
+    /// Show interface + association state
+    Status,
+    /// Scan — one SSID per line
+    Scan,
+    /// Join a network (writes wpa_supplicant.conf + restarts netif)
+    Connect { ssid: String, pass: Option<String> },
 }
 
 #[derive(Subcommand)]
@@ -142,6 +182,20 @@ fn main() -> Result<()> {
             PowerCommand::Battery { start, stop } => power::battery(start, stop),
         },
         Command::Doctor => doctor::run(),
+        Command::Bt { command } => match command {
+            BtCommand::On => bt::on(),
+            BtCommand::Off => bt::off(),
+            BtCommand::Status => bt::status(),
+            BtCommand::Scan => bt::scan(),
+            BtCommand::Pair { bdaddr, pin } => bt::pair(&bdaddr, &pin),
+            BtCommand::Connect { bdaddr } => bt::connect(&bdaddr),
+            BtCommand::Disconnect { bdaddr } => bt::disconnect(&bdaddr),
+        },
+        Command::Wifi { command } => match command {
+            WifiCommand::Status => wifi::status(),
+            WifiCommand::Scan => wifi::scan().map(|_| ()),
+            WifiCommand::Connect { ssid, pass } => wifi::connect(&ssid, pass.as_deref()),
+        },
         Command::Image { command } => match command {
             ImageCommand::Build { release } => image::build(&release),
         },
