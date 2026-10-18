@@ -1,0 +1,57 @@
+// Freearchy rofi — Tokyo Night (Omarchy palette)
+configuration {
+    font: "monospace 12";
+    show-icons: true;
+    drun-display-format: "{name}";
+}
+
+* {
+    bg:      #1a1b26;
+    bg-alt:  #24283b;
+    fg:      #c0caf5;
+    fg-dim:  #565f89;
+    accent:  #7aa2f7;
+    urgent:  #f7768e;
+
+    background-color: transparent;
+    text-color: @fg;
+}
+
+window {
+    width: 640px;
+    border: 2px;
+    border-color: @accent;
+    border-radius: 12px;
+    background-color: @bg;
+    padding: 12px;
+}
+
+mainbox {
+    spacing: 8px;
+    children: [ inputbar, listview ];
+}
+
+inputbar {
+    background-color: @bg-alt;
+    border-radius: 8px;
+    padding: 8px 12px;
+    children: [ prompt, entry ];
+}
+
+prompt { text-color: @accent; }
+entry  { text-color: @fg; placeholder: "run…"; placeholder-color: @fg-dim; }
+
+listview {
+    lines: 8;
+    spacing: 4px;
+}
+
+element {
+    padding: 6px 10px;
+    border-radius: 6px;
+}
+element selected {
+    background-color: @accent;
+    text-color: @bg;
+}
+element-text selected { text-color: @bg; }

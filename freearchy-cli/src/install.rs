@@ -16,6 +16,7 @@ pub fn run(no_packages: bool, dev: bool, no_shell: bool) -> Result<()> {
     link_configs(&repo)?;
     install_wm(&repo)?;
     install_picom(&repo)?;
+    gen_wallpaper()?;
     theme::set("tokyo-night")?;
 
     if !no_shell {
@@ -79,6 +80,26 @@ fn install_picom(repo: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Generate the default wallpaper — a Tokyo Night gradient via ImageMagick.
+/// Non-fatal: xinitrc falls back to `xsetroot -solid` if it's absent.
+fn gen_wallpaper() -> Result<()> {
+    let dir = util::home()?.join(".local/share/freearchy");
+    fs::create_dir_all(&dir)?;
+    let wall = dir.join("wallpaper.png");
+    if wall.exists() {
+        return Ok(());
+    }
+    let status = std::process::Command::new("magick")
+        .args(["-size", "1920x1080", "gradient:#1a1b26-#24283b"])
+        .arg(&wall)
+        .status();
+    match status {
+        Ok(s) if s.success() => {}
+        _ => eprintln!("    warn: wallpaper generation skipped (magick missing?)"),
+    }
+    Ok(())
+}
+
 /// Re-apply configs + theme after `git pull` on the repo.
 pub fn update() -> Result<()> {
     let repo = util::repo_root()?;
@@ -129,6 +150,8 @@ fn link_configs(repo: &Path) -> Result<()> {
         (repo.join("config/hyprland"), cfg.join("hypr")),
         (repo.join("config/foot"), cfg.join("foot")),
         (repo.join("config/x11"), cfg.join("freearchy/x11")),
+        (repo.join("config/x11/rofi"), cfg.join("rofi")),
+        (repo.join("config/x11/alacritty"), cfg.join("alacritty")),
     ];
     for (src, dst) in pairs {
         link(&src, &dst)?;

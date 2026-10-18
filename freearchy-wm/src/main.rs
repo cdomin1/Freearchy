@@ -4,8 +4,8 @@
 //! Omarchy/Hyprland muscle-memory map: Super+h/j/k/l focus, Super+Enter
 //! terminal, Super+Space launcher, workspaces 1–9.
 //!
-//! Static config (compile-time) for now — a parsed config file is a
-//! deliberate later step; keep the defaults matching config/freearchy-wm/*.
+//! Styling follows the Omarchy/Tokyo-Night palette: dark bg, blue accent
+//! borders, 5px gaps, and a dwm-style status bar across the top.
 
 use penrose::{
     builtin::{
@@ -14,7 +14,11 @@ use penrose::{
             floating::{MouseDragHandler, MouseResizeHandler, sink_focused},
             modify_with, send_layout_message, spawn,
         },
-        layout::messages::{ExpandMain, IncMain, ShrinkMain},
+        layout::{
+            MainAndStack, Monocle,
+            messages::{ExpandMain, IncMain, ShrinkMain},
+            transformers::{Gaps, ReserveTop},
+        },
     },
     core::{
         Config, WindowManager,
@@ -22,16 +26,35 @@ use penrose::{
             KeyEventHandler, MouseEventHandler, MouseState, click_handler,
             parse_keybindings_with_xmodmap,
         },
+        layout::LayoutStack,
     },
-    map,
+    extensions::hooks::add_ewmh_hooks,
+    map, stack,
     x11rb::RustConn,
     Result,
 };
-
+use penrose_ui::{bar::Position, core::TextStyle, status_bar};
 use std::collections::HashMap;
 
-const TERMINAL: &str = "foot";      // falls back to xterm if absent
+const TERMINAL: &str = "alacritty";
 const LAUNCHER: &str = "rofi -show drun";
+
+// --- Tokyo Night (Omarchy's palette) ---------------------------------------
+const TN_BG: u32 = 0x1a1b26ff;        // background
+const TN_FG: u32 = 0xc0caf5ff;        // foreground text
+const TN_ACCENT: u32 = 0x7aa2f7ff;    // blue accent — focused border / active ws
+const TN_GREY: u32 = 0x414868ff;      // unfocused border / empty ws
+
+const FONT: &str = "monospace";
+const BAR_HEIGHT_PX: u32 = 24;
+const BAR_WIDGETS: usize = 8;
+
+const MAX_MAIN: u32 = 1;
+const RATIO: f32 = 0.55;
+const RATIO_STEP: f32 = 0.1;
+const OUTER_PX: u32 = 5;
+const INNER_PX: u32 = 5;
+const BORDER_PX: u32 = 2;
 
 fn raw_key_bindings() -> HashMap<String, Box<dyn KeyEventHandler<RustConn>>> {
     let mut raw_bindings = map! {
@@ -68,11 +91,10 @@ fn raw_key_bindings() -> HashMap<String, Box<dyn KeyEventHandler<RustConn>>> {
 
         // apps — Omarchy defaults
         "M-Return" => spawn(TERMINAL),
+        "M-t" => spawn(TERMINAL),
         "M-space" => spawn(LAUNCHER),
-        "M-S-b" => spawn("firefox"),
         "M-b" => spawn("firefox"),
         "M-f" => spawn("nemo"),
-        "M-t" => spawn(TERMINAL),
 
         // session
         "M-S-q" => exit(),
@@ -109,15 +131,55 @@ fn mouse_bindings() -> HashMap<MouseState, Box<dyn MouseEventHandler<RustConn>>>
     }
 }
 
+fn layouts() -> LayoutStack {
+    stack!(
+        MainAndStack::side(MAX_MAIN, RATIO, RATIO_STEP),
+        MainAndStack::side_mirrored(MAX_MAIN, RATIO, RATIO_STEP),
+        MainAndStack::bottom(MAX_MAIN, RATIO, RATIO_STEP),
+        Monocle::boxed()
+    )
+    .map(|layout| ReserveTop::wrap(Gaps::wrap(layout, OUTER_PX, INNER_PX), BAR_HEIGHT_PX))
+}
+
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter("info")
         .finish()
         .init();
 
+    let config = add_ewmh_hooks(Config {
+        border_width: BORDER_PX,
+        focused_border: TN_ACCENT,
+        unfocused_border: TN_GREY,
+        default_layouts: layouts(),
+        ..Config::default()
+    });
+
     let conn = RustConn::new()?;
     let key_bindings = parse_keybindings_with_xmodmap(raw_key_bindings())?;
-    let wm = WindowManager::new(Config::default(), key_bindings, mouse_bindings(), conn)?;
+
+    let style = TextStyle {
+        fg: TN_FG.into(),
+        bg: Some(TN_BG.into()),
+        padding: (4, 4),
+    };
+    let bar = status_bar(
+        BAR_HEIGHT_PX,
+        FONT,
+        BAR_WIDGETS,
+        style,
+        TN_ACCENT,
+        TN_GREY,
+        Position::Top,
+    )
+    .expect("failed to create status bar");
+
+    let wm = bar.add_to(WindowManager::new(
+        config,
+        key_bindings,
+        mouse_bindings(),
+        conn,
+    )?);
 
     wm.run()
 }
