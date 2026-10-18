@@ -73,6 +73,12 @@ sed -i '' 's|/usr/libexec/bsdinstall/startbsdinstall|/usr/local/bin/vellum-insta
 grep -q vellum-install "$WORK/mnt/etc/rc.local" \
     || { echo "!! rc.local patch did not apply" >&2; exit 1; }
 
+echo "==> Skipping the loader menu (straight to the TUI)"
+{
+    echo 'autoboot_delay="-1"'   # no menu, no countdown
+    echo 'beastie_disable="YES"' # no FreeBSD logo/boot menu
+} >> "$WORK/mnt/boot/loader.conf"
+
 sync
 umount "$WORK/mnt"
 mdconfig -d -u "$MD"
