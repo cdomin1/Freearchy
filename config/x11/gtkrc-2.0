@@ -1,0 +1,5 @@
+# GTK2 apps (rare) — same theme family so nothing renders stock-grey.
+gtk-theme-name="Materia-dark"
+gtk-icon-theme-name="Papirus-Dark"
+gtk-fallback-icon-theme="Adwaita"
+gtk-font-name="Sans 10"

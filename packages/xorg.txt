@@ -11,6 +11,10 @@ xset                      # provides xsetroot for the root cursor
 feh                       # wallpaper setter
 polybar                   # panel (EWMH modules + FreeBSD script shims)
 xfce4-notifyd             # notifications (dunst isn't ported)
+materia-gtk-theme         # GTK theme (adw-gtk3-alike dark, thunar etc.)
+papirus-icon-theme        # icons — Omarchy uses Papirus too
+adwaita-icon-theme        # fallback icons + Adwaita cursor
+gtk-murrine-engine        # GTK2 engine some themes still need
 slock                     # screen lock (Super+Esc)
 maim                      # screenshots (Print)
 

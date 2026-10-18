@@ -228,13 +228,15 @@ fn link_configs(repo: &Path) -> Result<()> {
         (repo.join("config/x11/rofi"), cfg.join("rofi")),
         (repo.join("config/x11/alacritty"), cfg.join("alacritty")),
         (repo.join("config/x11/polybar"), cfg.join("polybar")),
+        (repo.join("config/x11/gtk-3.0"), cfg.join("gtk-3.0")),
     ];
     for (src, dst) in pairs {
         link(&src, &dst)?;
     }
-    // startx entry point
+    // startx entry point + GTK2 rc for stragglers
     let home = util::home()?;
     link(&cfg.join("vellum/x11/xinitrc"), &home.join(".xinitrc"))?;
+    link(&cfg.join("vellum/x11/gtkrc-2.0"), &home.join(".gtkrc-2.0"))?;
     Ok(())
 }
 
