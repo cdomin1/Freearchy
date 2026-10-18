@@ -38,6 +38,9 @@ jobs:
           release: "15.1"
           mem: 6144
           usesh: true
+          # no workspace sync needed — the VM clones the repo itself;
+          # rsync sync is flaky on this action and was killing runs
+          sync: "no"
           copyback: false
           env: |
             GH_TOKEN
