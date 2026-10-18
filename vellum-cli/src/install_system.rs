@@ -360,12 +360,28 @@ fn boot_loader(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
 
 /// KMS module for the detected GPU — linuxkpi-backed drm-kmod drivers.
 /// pciconf: vga lines look like `vgapci0@pci0:0:2:0: class=0x030000 ... vendor=0x8086`
+/// Extra kmods for Apple hardware: `wsp`/`atp` drive the multitouch
+/// trackpads (base modules, no firmware needed).
+fn apple_klds() -> Vec<&'static str> {
+    let vendor = util::capture("sysctl", &["-n", "hw.vendor"]).unwrap_or_default();
+    let model = util::capture("sysctl", &["-n", "hw.model"]).unwrap_or_default();
+    if vendor.contains("Apple") || model.starts_with("Mac") {
+        vec!["wsp", "atp"]
+    } else {
+        Vec::new()
+    }
+}
+
 fn system_files(spec: &InstallSpec) -> Result<()> {
-    let kld_list = crate::gpu::kld_list();
-    let kld = if kld_list.is_empty() {
+    let mut klds: Vec<String> = crate::gpu::kld_list()
+        .split_whitespace()
+        .map(String::from)
+        .collect();
+    klds.extend(apple_klds().iter().map(|s| s.to_string()));
+    let kld = if klds.is_empty() {
         String::new()
     } else {
-        format!("kld_list=\"{kld_list}\"\n")
+        format!("kld_list=\"{}\"\n", klds.join(" "))
     };
     fs::write(
         format!("{MNT}/etc/rc.conf"),

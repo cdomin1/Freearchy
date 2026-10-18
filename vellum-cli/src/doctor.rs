@@ -28,6 +28,7 @@ const CHECKS: &[Check] = &[
     Check { name: "XDG_RUNTIME_DIR set", run: xdg_runtime_dir },
     Check { name: "hyprland config linked", run: hypr_config },
     Check { name: "suspend support", run: sleep_state },
+    Check { name: "apple hardware", run: apple_hardware },
 ];
 
 fn bin(name: &str) -> CheckResult {
@@ -136,6 +137,30 @@ fn sleep_state() -> CheckResult {
         CheckResult::Ok(detail("s2idle"))
     } else {
         CheckResult::Fail(format!("no usable sleep state: {}", s.trim()))
+    }
+}
+
+fn apple_hardware() -> CheckResult {
+    let model = util::capture("sysctl", &["-n", "hw.model"]).unwrap_or_default();
+    let vendor = util::capture("sysctl", &["-n", "hw.vendor"]).unwrap_or_default();
+    let hay = format!("{model} {vendor}");
+    if !hay.to_lowercase().contains("apple") && !model.starts_with("Mac") {
+        return CheckResult::Ok("n/a".into());
+    }
+    // T2-era Macs (2018+) bury storage/input behind the security chip.
+    let t2 = ["MacBookPro15", "MacBookPro16", "MacBookAir8", "MacBookAir9",
+              "iMacPro", "Macmini8", "iMac20", "MacPro7", "iMac21"]
+        .iter().any(|m| model.contains(m));
+    if t2 {
+        CheckResult::Warn(format!(
+            "{} — T2 chip: storage/keyboard may not be visible; Broadcom wifi unsupported. Prefer USB NIC. See docs/apple.md",
+            model.trim()
+        ))
+    } else {
+        CheckResult::Warn(format!(
+            "{} — Intel Mac: use wsp/atp for the trackpad, expect Broadcom wifi gaps. See docs/apple.md",
+            model.trim()
+        ))
     }
 }
 

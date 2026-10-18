@@ -26,3 +26,4 @@ ffmpeg
 yt-dlp
 syncthing?                # optional
 zed-editor?               # editors/zed — in ports, binary name `zedit`
+webcamd?                  # UVC webcams incl. FaceTime HD on Intel Macs
