@@ -7,6 +7,16 @@
 # (wpa_supplicant's rc script needs an interface arg, so not called alone).
 service netif restart 2>/dev/null
 
+# Bluetooth: a dongle that stayed powered across sleep doesn't re-fire
+# the devd attach event — start the stack on whatever ubt nodes exist.
+for ubt in /dev/ubt[0-9]*; do
+    [ -c "$ubt" ] || continue
+    service bluetooth quietstart "${ubt#/dev/}" 2>/dev/null
+done
+
+# EPP / wlan powersave reset across sleep — re-apply the live profile.
+[ -x /usr/local/libexec/vellum-power ] && /usr/local/libexec/vellum-power ac
+
 # NVRAM clock can drift across suspend; ntpd will reslew on its own.
 service ntpd restart 2>/dev/null
 

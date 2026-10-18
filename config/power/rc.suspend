@@ -1,18 +1,21 @@
 #!/bin/sh
-# Vellum /etc/rc.suspend — runs as root before the kernel sleeps.
-# (acpiconf -s N / zzz / lid close all funnel through this.)
+# Vellum /etc/rc.suspend — runs as root before the kernel sleeps, no
+# matter what asked for it (zzz, acpiconf -s, lid close, sleep button).
 
-# Lock the X session before we go down — resuming to an unlocked
-# desktop otherwise. slock must grab the display while it's still up.
-for home in /home/*; do
-    user=${home##*/}
-    [ -d "$home" ] || continue
-    su -l "$user" -c "DISPLAY=:0 slock" 2>/dev/null &
-done
+# Lock the X session before we go down — resume must land on the lock
+# screen, not an open desktop. Find the session owner via the WM
+# process rather than iterating every home directory (other users'
+# slock would just fail and add noise).
+xuser=$(ps -axo user=,comm= | awk '$2 == "vellum-wm" {print $1; exit}')
+if [ -n "$xuser" ]; then
+    # su -l gives the user's HOME so xauth finds the right cookie.
+    su -l "$xuser" -c 'DISPLAY=:0 slock' 2>/dev/null &
+    # let slock grab the display before the kernel cuts it
+    sleep 0.5
+fi
 
-# Give slock a moment to grab the X display before we suspend.
-sleep 0.3
-
+# USB-BT dongles can wedge mid-transfer; flush and let devd rebuild on
+# resume rather than racing the suspend.
 sync
 sync
 exit 0

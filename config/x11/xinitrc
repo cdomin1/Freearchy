@@ -25,6 +25,12 @@ xsetroot -cursor_name left_ptr 2>/dev/null
 xset s on; xset s 300
 xset +dpms; xset dpms 600 900 1200
 
+# idle lock at 10m via xautolock (xss-lock needs logind — not on FreeBSD).
+# rc.suspend locks independently of idle state, so lid-close still locks.
+if command -v xautolock >/dev/null; then
+    xautolock -time 10 -locker slock -detectsleep &
+fi
+
 # notifications (dunst isn't ported; xfce4-notifyd is dbus-activated
 # anyway — this is just a safety net)
 /usr/local/libexec/xfce4/notifyd/xfce4-notifyd 2>/dev/null &

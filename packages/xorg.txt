@@ -21,7 +21,13 @@ papirus-icon-theme        # icons — Omarchy uses Papirus too
 adwaita-icon-theme        # fallback icons + Adwaita cursor
 gtk-murrine-engine        # GTK2 engine some themes still need
 slock                     # screen lock (Super+Esc)
+xautolock                 # idle → slock (xss-lock needs logind; n/a here)
 maim                      # screenshots (Print)
+xdotool                   # active-window id for S-Print shots
+xclip                     # screenshots/clipboard → X selection
+copyq                     # clipboard history daemon + menu (M-C-v)
+playerctl                 # MPRIS media keys (firefox/mpv)
+rofi-calc                 # launcher calculator mode (= expr)
 
 # DDX drivers — modesetting (in xorg-server) covers KMS hardware;
 # scfb is the EFI-framebuffer fallback VMs and KMS-less boots rely on.
