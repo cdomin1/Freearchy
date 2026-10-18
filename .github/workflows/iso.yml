@@ -42,11 +42,7 @@ jobs:
           # rsync sync is flaky on this action and was killing runs
           sync: "no"
           copyback: false
-          env: |
-            GH_TOKEN
-            GITHUB_REF_NAME
-            GITHUB_REF_TYPE
-            ARCH
+          envs: GH_TOKEN GITHUB_REF_NAME GITHUB_REF_TYPE ARCH
           run: |
             set -ex
             pkg install -y rust git-lite curl
