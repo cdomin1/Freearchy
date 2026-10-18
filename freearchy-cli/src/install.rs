@@ -152,6 +152,7 @@ fn link_configs(repo: &Path) -> Result<()> {
         (repo.join("config/x11"), cfg.join("freearchy/x11")),
         (repo.join("config/x11/rofi"), cfg.join("rofi")),
         (repo.join("config/x11/alacritty"), cfg.join("alacritty")),
+        (repo.join("config/x11/polybar"), cfg.join("polybar")),
     ];
     for (src, dst) in pairs {
         link(&src, &dst)?;

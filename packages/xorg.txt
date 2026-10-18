@@ -9,6 +9,8 @@ rofi                      # launcher (Super+Space)
 alacritty                 # terminal (foot is wayland-only)
 xset                      # provides xsetroot for the root cursor
 feh                       # wallpaper setter
+polybar                   # panel (EWMH modules + FreeBSD script shims)
+xfce4-notifyd             # notifications (dunst isn't ported)
 
 # picom is built from source (x11/build-picom.sh, pijulius animations fork) —
 # its build deps:

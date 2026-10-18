@@ -20,4 +20,11 @@ else
 fi
 xsetroot -cursor_name left_ptr 2>/dev/null
 
+# notifications (dunst isn't ported; xfce4-notifyd is dbus-activated
+# anyway — this is just a safety net)
+/usr/local/libexec/xfce4/notifyd/xfce4-notifyd 2>/dev/null &
+
+# panel — freearchy-wm reserves the top 28px via ReserveTop
+polybar -c "$HOME/.config/polybar/config.ini" freearchy &
+
 exec freearchy-wm

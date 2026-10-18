@@ -5,7 +5,8 @@
 //! terminal, Super+Space launcher, workspaces 1–9.
 //!
 //! Styling follows the Omarchy/Tokyo-Night palette: dark bg, blue accent
-//! borders, 5px gaps, and a dwm-style status bar across the top.
+//! borders, 5px gaps, and a polybar panel across the top (ReserveTop
+//! keeps tiled windows out from under it).
 
 use penrose::{
     builtin::{
@@ -33,7 +34,6 @@ use penrose::{
     x11rb::RustConn,
     Result,
 };
-use penrose_ui::{bar::Position, core::TextStyle, status_bar};
 use std::collections::HashMap;
 
 const TERMINAL: &str = "alacritty";
@@ -45,9 +45,7 @@ const TN_FG: u32 = 0xc0caf5ff;        // foreground text
 const TN_ACCENT: u32 = 0x7aa2f7ff;    // blue accent — focused border / active ws
 const TN_GREY: u32 = 0x414868ff;      // unfocused border / empty ws
 
-const FONT: &str = "monospace";
-const BAR_HEIGHT_PX: u32 = 24;
-const BAR_WIDGETS: usize = 8;
+const BAR_HEIGHT_PX: u32 = 28; // reserved for polybar
 
 const MAX_MAIN: u32 = 1;
 const RATIO: f32 = 0.55;
@@ -158,28 +156,6 @@ fn main() -> Result<()> {
     let conn = RustConn::new()?;
     let key_bindings = parse_keybindings_with_xmodmap(raw_key_bindings())?;
 
-    let style = TextStyle {
-        fg: TN_FG.into(),
-        bg: Some(TN_BG.into()),
-        padding: (4, 4),
-    };
-    let bar = status_bar(
-        BAR_HEIGHT_PX,
-        FONT,
-        BAR_WIDGETS,
-        style,
-        TN_ACCENT,
-        TN_GREY,
-        Position::Top,
-    )
-    .expect("failed to create status bar");
-
-    let wm = bar.add_to(WindowManager::new(
-        config,
-        key_bindings,
-        mouse_bindings(),
-        conn,
-    )?);
-
+    let wm = WindowManager::new(config, key_bindings, mouse_bindings(), conn)?;
     wm.run()
 }
