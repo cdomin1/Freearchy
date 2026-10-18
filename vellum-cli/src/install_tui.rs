@@ -13,7 +13,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use super::install_system::{disks, execute, InstallSpec};
+use super::install_system::{disks, execute, valid_hostname, valid_username, InstallSpec};
 use super::util;
 
 // Tokyo Night (the default theme) as true RGB — exact palette, not
@@ -43,7 +43,7 @@ const KEYMAPS: [(&str, &str); 14] = [
     ("Estonian", "ee"),
     ("Finnish", "fi"),
     ("French", "fr"),
-    ("French (Canada)", "fr.ca.acc"),
+    ("French (Canada)", "ca-fr"),
     ("German", "de"),
     ("Italian", "it"),
     ("Norwegian", "no"),
@@ -164,7 +164,7 @@ fn wizard_loop(term: &mut DefaultTerminal) -> Result<()> {
                     KeyCode::Down | KeyCode::Char('j') => sel(&mut w.keymap, KEYMAPS.len(), 1),
                     KeyCode::Enter => {
                         // Apply immediately so typing below matches the choice.
-                        let _ = util::run(
+                        let _ = util::capture(
                             "kbdcontrol",
                             &["-l", KEYMAPS[w.keymap.selected().unwrap_or(0)].1],
                         );
@@ -239,16 +239,12 @@ fn wizard_loop(term: &mut DefaultTerminal) -> Result<()> {
 
 fn input_done(w: &mut Wizard) -> Option<Screen> {
     let ok = match w.screen {
-        Screen::Username => {
-            !w.username.is_empty()
-                && w.username
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
-        }
+        Screen::Username => valid_username(&w.username),
         Screen::Password => !w.password.is_empty(),
         Screen::ConfirmPass => w.confirm == w.password,
-        Screen::Hostname => !w.hostname.is_empty(),
-        _ => true, // FullName and Email are skippable
+        Screen::Hostname => valid_hostname(&w.hostname),
+        // FullName and Email are skippable; they land in passwd/.gitconfig
+        _ => !input_mut(w).contains([':', '"']),
     };
     if !ok {
         return None;
@@ -375,12 +371,12 @@ fn draw(f: &mut Frame, w: &mut Wizard) {
         }
         s if input_screen(s) => {
             let (prompt, hint, value, mask) = match s {
-                Screen::Username => ("Username", "alphanumeric without spaces (like dhh)", &w.username, false),
+                Screen::Username => ("Username", "lower-case letters/digits, no spaces (like dhh)", &w.username, false),
                 Screen::FullName => ("Full name", "", &w.fullname, false),
                 Screen::Password => ("Password", "Used for user + root", &w.password, true),
                 Screen::ConfirmPass => ("Confirm", "", &w.confirm, true),
                 Screen::Email => ("Email address", "Used for git authentication (hit return to skip)", &w.email, false),
-                _ => ("Hostname", "lower-case hostname", &w.hostname, false),
+                _ => ("Hostname", "lower-case letters, digits, - and .", &w.hostname, false),
             };
             let shown = if mask { "•".repeat(value.chars().count()) } else { value.clone() };
             let mut lines = vec![

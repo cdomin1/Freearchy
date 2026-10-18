@@ -3,6 +3,12 @@
 # REQUIRE: NETWORKING
 # BEFORE:  LOGIN
 # KEYWORD: firstboot
+#
+# One-shot desktop setup after `vellum install-system`. rc(8) only runs
+# firstboot-keyword scripts while /firstboot exists (the installer creates
+# it); the rc.conf knobs are removed afterwards as a second guard.
+#
+# vellum_firstboot_user: desktop user whose home gets the configs.
 
 . /etc/rc.subr
 
@@ -10,27 +16,48 @@ name="vellum_firstboot"
 rcvar="${name}_enable"
 start_cmd="${name}_start"
 
-vellum_firstboot_start()
-{
-    echo "vellum: running first-boot setup"
-    # Install bootstrap toolchain, clone repo, run installer as root —
-    # it drops privileges appropriately per-step.
-    /usr/sbin/pkg bootstrap -yf
-    /usr/local/bin/pkg install -y git-lite rust
-    /usr/local/bin/git clone https://github.com/cdomin1/Vellum.git \
-        /usr/local/vellum
-    VELLUM_HOME=/usr/local/vellum \
-        /usr/local/bin/cargo install --path /usr/local/vellum/vellum-cli \
-        --root /usr/local
-    # The X11 tiler + the CLI both install; the cli drives the rest.
-    VELLUM_HOME=/usr/local/vellum \
-        /usr/local/bin/cargo install --path /usr/local/vellum/vellum-wm \
-        --root /usr/local || true
-    /usr/local/bin/vellum install --dev || true
+load_rc_config "$name"
+: "${vellum_firstboot_user:=}"
 
-    # One-shot: don't run again.
-    sysrc -x "${rcvar}"
+LOG=/var/log/vellum-firstboot.log
+
+step()
+{
+    echo "vellum: $*"
+    echo "==> $*" >>"$LOG"
 }
 
-load_rc_config "$name"
+vellum_firstboot_setup()
+{
+    export HOME=/root ASSUME_ALWAYS_YES=yes
+    export PATH="/usr/local/sbin:/usr/local/bin:$PATH"
+
+    step "bootstrapping pkg"
+    pkg bootstrap -f >>"$LOG" 2>&1 || return 1
+    step "installing toolchain (rust builds vellum-wm)"
+    pkg install -y git-lite rust >>"$LOG" 2>&1 || return 1
+
+    # install-system copies its own binary in; build only if that failed
+    if [ ! -x /usr/local/bin/vellum ]; then
+        step "building the vellum CLI"
+        cargo install --path /usr/local/vellum/vellum-cli --root /usr/local \
+            >>"$LOG" 2>&1 || return 1
+    fi
+
+    step "installing the desktop for ${vellum_firstboot_user:-root} (takes a while)"
+    env VELLUM_HOME=/usr/local/vellum SUDO_USER="$vellum_firstboot_user" \
+        /usr/local/bin/vellum install --no-shell >>"$LOG" 2>&1
+}
+
+vellum_firstboot_start()
+{
+    echo "vellum: first-boot setup — progress in $LOG"
+    if vellum_firstboot_setup; then
+        step "setup complete — log in and run startx"
+    else
+        step "setup failed — see $LOG, then rerun: doas vellum install"
+    fi
+    sysrc -x vellum_firstboot_enable vellum_firstboot_user >/dev/null 2>&1
+}
+
 run_rc_command "$1"

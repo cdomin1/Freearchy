@@ -47,8 +47,8 @@ jobs:
             set -ex
             pkg install -y rust git-lite curl
             git clone --depth 1 ${GITHUB_REF_TYPE:+--branch "${GITHUB_REF_NAME}"} \
-                https://github.com/cdomin1/Vellum.git ~/vellum || \
-                git clone --depth 1 https://github.com/cdomin1/Vellum.git ~/vellum
+                https://github.com/cdomin1/vellum.git ~/vellum || \
+                git clone --depth 1 https://github.com/cdomin1/vellum.git ~/vellum
             cd ~/vellum
             cargo build --release -p vellum
             strip target/release/vellum
@@ -59,7 +59,7 @@ jobs:
             xz -T0 "$IMG"
             # Tag builds: create-or-reuse the release, upload the img.xz.
             if [ "$GITHUB_REF_TYPE" = "tag" ]; then
-                REPO=cdomin1/Vellum
+                REPO=cdomin1/vellum
                 TAG="$GITHUB_REF_NAME"
                 API="https://api.github.com/repos/$REPO"
                 RID=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" \

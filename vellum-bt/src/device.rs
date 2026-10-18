@@ -1,6 +1,8 @@
 //! org.bluez.Device1 — one object per discovered/paired peer.
 
-#[allow(dead_code)]
+// Scaffold: no Device objects are registered on the bus yet.
+#![allow(dead_code)]
+
 pub struct Device {
     pub address: String,
     pub name: String,

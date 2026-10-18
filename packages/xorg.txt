@@ -7,8 +7,13 @@ xrandr
 setxkbmap
 rofi                      # launcher (Super+Space)
 alacritty                 # terminal (foot is wayland-only)
-xset                      # provides xsetroot for the root cursor
+xset                      # DPMS / screen blanking (xinitrc)
+xsetroot                  # root cursor + solid-colour fallback (xinitrc)
 feh                       # wallpaper setter
+ImageMagick7              # `magick` converts theme wallpapers (vellum theme)
+picom                     # compositor — v12+ has native animations
+dejavu                    # baseline fonts for polybar/rofi/alacritty
+noto-basic?               # wider glyph coverage
 polybar                   # panel (EWMH modules + FreeBSD script shims)
 xfce4-notifyd             # notifications (dunst isn't ported)
 materia-gtk-theme         # GTK theme (adw-gtk3-alike dark, thunar etc.)
@@ -18,26 +23,9 @@ gtk-murrine-engine        # GTK2 engine some themes still need
 slock                     # screen lock (Super+Esc)
 maim                      # screenshots (Print)
 
-# picom is built from source (x11/build-picom.sh, pijulius animations fork) —
-# its build deps:
-meson
-ninja
-pkgconf
-libconfig
-libev
-uthash                  # headers-only
-pixman
-libX11
-x11-xcb
-xcb-util-renderutil
-xcb-util-image
-xcb-util
-libglvnd
-libepoxy?
-libxdg-basedir?         # picom optional dep
-pcre2?                  # picom optional dep
-
-# DDX drivers — modesetting covers most modern hw; these as fallbacks/opts
+# DDX drivers — modesetting (in xorg-server) covers KMS hardware;
+# scfb is the EFI-framebuffer fallback VMs and KMS-less boots rely on.
 xf86-input-libinput
+xf86-video-scfb
 xf86-video-intel?         # amd64 only
 xf86-video-amdgpu?        # amd64 only

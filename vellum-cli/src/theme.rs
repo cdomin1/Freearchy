@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::os::unix::fs::symlink;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::util;
 
@@ -59,7 +59,7 @@ pub fn set(name: &str) -> Result<()> {
 }
 
 /// Read a key from a theme's theme.toml (flat `key = "value"` lines).
-fn theme_key(src: &PathBuf, key: &str) -> Option<String> {
+fn theme_key(src: &Path, key: &str) -> Option<String> {
     let text = fs::read_to_string(src.join("theme.toml")).ok()?;
     for line in text.lines() {
         if let Some((k, v)) = line.split_once('=') {
@@ -74,7 +74,7 @@ fn theme_key(src: &PathBuf, key: &str) -> Option<String> {
 /// Apply the theme's wallpaper: convert the shipped file to PNG via
 /// ImageMagick (feh/imlib2 webp support is unreliable), else render a
 /// gradient from the palette. Applies with feh if a session is up.
-fn apply_wallpaper(src: &PathBuf, name: &str) {
+fn apply_wallpaper(src: &Path, name: &str) {
     let Ok(home) = util::home() else { return };
     let dir = home.join(".local/share/vellum");
     if fs::create_dir_all(&dir).is_err() { return }

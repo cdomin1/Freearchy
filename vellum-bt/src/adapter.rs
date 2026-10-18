@@ -3,8 +3,6 @@
 
 use tokio::sync::Mutex;
 
-use crate::hci;
-
 pub struct Adapter {
     node: String,          // e.g. "ubt0"
     powered: Mutex<bool>,

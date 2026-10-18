@@ -22,29 +22,32 @@ pub fn run(no_packages: bool, dev: bool, no_shell: bool) -> Result<()> {
     system_setup(&repo)?;
     link_configs(&repo)?;
     install_wm(&repo)?;
-    install_picom(&repo)?;
     theme::set("tokyo-night")?;
 
     if !no_shell {
+        // Shelved Wayland shell — never let it sink the X11 install.
         // Run with HOME aimed at the invoking user so QS_DIR/FONTS_DIR land in
         // their ~/.config / ~/.local even though pkg runs as root.
         let script = repo.join("shell/build-shell.sh");
         let home = util::home()?;
-        let status = std::process::Command::new("sh")
+        let ok = std::process::Command::new("sh")
             .arg(&script)
             .env("HOME", &home)
-            .status()?;
-        anyhow::ensure!(status.success(), "build-shell.sh exited with {status}");
+            .status()
+            .is_ok_and(|s| s.success());
+        if !ok {
+            eprintln!("    warn: Caelestia shell build failed — X11 session unaffected");
+        }
     }
 
     // Root-owned dirs created above belong to the desktop user.
     if let Some(user) = util::invoking_user() {
         let home = util::home()?;
-        for dir in [home.join(".config"), home.join(".local/share")] {
+        for dir in [home.join(".config"), home.join(".local")] {
             if dir.exists() {
                 let _ = util::run(
                     "chown",
-                    &["-R", &format!("{user}:{user}"), dir.to_str().unwrap()],
+                    &["-R", &format!("{user}:{user}"), &dir.to_string_lossy()],
                 );
             }
         }
@@ -71,21 +74,6 @@ fn install_wm(repo: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Build the animated picom fork (pijulius/picom) — not in ports.
-fn install_picom(repo: &Path) -> Result<()> {
-    println!("==> Building picom (pijulius animation fork)");
-    let home = util::home()?;
-    let status = std::process::Command::new("sh")
-        .arg(repo.join("x11/build-picom.sh"))
-        .env("HOME", &home)
-        .status()?;
-    if !status.success() {
-        // Non-fatal: a stock picom pkg or none still leaves a working session.
-        eprintln!("    warn: picom build failed — session still works, no animations");
-    }
-    Ok(())
-}
-
 /// Re-apply configs + theme after `git pull` on the repo.
 pub fn update() -> Result<()> {
     let repo = util::repo_root()?;
@@ -94,7 +82,7 @@ pub fn update() -> Result<()> {
     Ok(())
 }
 
-/// Services, groups and kernel modules needed for a Wayland session on FreeBSD.
+/// Services, groups and kernel modules for the desktop session.
 fn system_setup(repo: &Path) -> Result<()> {
     // Service enables — idempotent.
     for (service, _) in [("seatd", "on"), ("dbus", "on")] {
@@ -114,11 +102,11 @@ fn system_setup(repo: &Path) -> Result<()> {
         }
     }
 
-    // GPU kernel modules. We can't reliably detect the GPU here; doctor reports
-    // what's loaded and docs explain the choice. Intel is the common case.
-    println!("==> NOTE: ensure the right kms module loads at boot:");
-    println!("    sysrc kld_list+=i915kms    # Intel");
-    println!("    sysrc kld_list+=amdgpu     # AMD");
+    // GPU kernel modules for whatever pciconf reports (sysrc += dedups).
+    let klds = crate::gpu::kld_list();
+    if !klds.is_empty() {
+        util::run("sysrc", &[&format!("kld_list+={klds}")])?;
+    }
 
     // Seat + GPU access for the user who invoked the install (via doas/sudo).
     if let Some(user) = util::invoking_user() {
@@ -144,32 +132,28 @@ fn system_setup(repo: &Path) -> Result<()> {
 fn power_setup(repo: &Path) -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
 
-    let state = best_sleep_state().unwrap_or_else(|| "NONE".into());
-    if state == "NONE" {
-        println!("==> no ACPI sleep states detected — skipping suspend config");
-        return Ok(());
-    }
-    println!("==> suspend: {state} (lid + sleep button)");
+    match crate::install_system::best_sleep_state() {
+        None => println!("==> no ACPI sleep states detected — skipping suspend config"),
+        Some(state) => {
+            println!("==> suspend: {state} (lid + sleep button)");
+            // sysctl.conf — append missing lines rather than clobber.
+            let sc = "/etc/sysctl.conf";
+            let mut text = fs::read_to_string(sc).unwrap_or_default();
+            for k in ["hw.acpi.lid_switch_state", "hw.acpi.sleep_button_state"] {
+                if !text.contains(k) {
+                    text.push_str(&format!("{k}={state}\n"));
+                }
+                let _ = util::run("sysctl", &[&format!("{k}={state}")]);
+            }
+            fs::write(sc, text)?;
 
-    // sysctl.conf — append missing lines rather than clobber.
-    let sc = "/etc/sysctl.conf";
-    let mut text = fs::read_to_string(sc).unwrap_or_default();
-    for (k, v) in [
-        ("hw.acpi.lid_switch_state", state.as_str()),
-        ("hw.acpi.sleep_button_state", state.as_str()),
-    ] {
-        if !text.contains(k) {
-            text.push_str(&format!("{k}={v}\n"));
+            // suspend/resume hooks
+            for f in ["rc.suspend", "rc.resume"] {
+                let dst = format!("/etc/{f}");
+                fs::copy(repo.join(format!("config/power/{f}")), &dst)?;
+                fs::set_permissions(&dst, fs::Permissions::from_mode(0o755))?;
+            }
         }
-        let _ = util::run("sysctl", &[&format!("{k}={v}")]);
-    }
-    fs::write(sc, text)?;
-
-    // suspend/resume hooks
-    for f in ["rc.suspend", "rc.resume"] {
-        let dst = format!("/etc/{f}");
-        fs::copy(repo.join(format!("config/power/{f}")), &dst)?;
-        fs::set_permissions(&dst, fs::Permissions::from_mode(0o755))?;
     }
 
     // wheel can suspend without a password (Omarchy-style convenience)
@@ -199,21 +183,6 @@ fn power_setup(repo: &Path) -> Result<()> {
         let _ = fs::write(lc, l);
     }
     Ok(())
-}
-
-fn best_sleep_state() -> Option<String> {
-    for mib in ["kern.power.supported_stype", "hw.acpi.supported_sleep_states"] {
-        if let Some(states) = util::capture("sysctl", &["-n", mib]) {
-            let s: Vec<&str> = states.split_whitespace().collect();
-            if s.contains(&"S3") {
-                return Some("S3".into());
-            }
-            if s.iter().any(|t| t.eq_ignore_ascii_case("s2idle")) {
-                return Some("s2idle".into());
-            }
-        }
-    }
-    None
 }
 
 /// Symlink repo-owned config into ~/.config (stow-style).

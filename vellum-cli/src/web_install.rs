@@ -53,6 +53,11 @@ struct InstallRequest {
 }
 
 pub fn serve(port: u16) -> Result<()> {
+    util::ensure_freebsd()?;
+    anyhow::ensure!(
+        util::capture("id", &["-u"]).is_some_and(|u| u.trim() == "0"),
+        "install-system --web must run as root"
+    );
     let server = Server::http(("0.0.0.0", port))
         .map_err(|e| anyhow::anyhow!("bind port {port}: {e}"))?;
     let shared = Arc::new(Shared {
@@ -155,7 +160,11 @@ fn api_install(mut request: tiny_http::Request, shared: &Arc<Shared>) -> Result<
         let result = install_system::execute(&spec, &log);
         *shared2.state.lock().unwrap() = match result {
             Ok(()) => InstallState::Done,
-            Err(e) => InstallState::Failed(format!("{e:#}")),
+            Err(e) => {
+                // allow a retry after fixing the cause
+                shared2.running.store(false, Ordering::SeqCst);
+                InstallState::Failed(format!("{e:#}"))
+            }
         };
     });
 

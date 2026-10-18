@@ -4,27 +4,29 @@
 # Called by devd on AC plug/unplug and by `vellum power set`.
 set -u
 
-EPP_MIBS="dev.hwpstate_intel.0.epp dev.hwpstate_amd.0.epp"
-
-epp_set() {
-    for mib in $EPP_MIBS; do
-        if sysctl -n "$mib" >/dev/null 2>&1; then
-            sysctl "$mib=$1" >/dev/null 2>&1 && return 0
-        fi
-    done
-    return 1
+# Per-CPU EPP OIDs (dev.hwpstate_intel.N.epp): integer 0 = performance …
+# 100 = efficiency, see hwpstate_intel(4).
+epp_mibs() {
+    sysctl -N dev.hwpstate_intel dev.hwpstate_amd 2>/dev/null | grep '\.epp$'
 }
 
+epp_set() {
+    for mib in $(epp_mibs); do
+        sysctl "$mib=$1" >/dev/null 2>&1
+    done
+}
+
+# powersave is set on the wlanN clone, not the parent (iwlwifi0 …)
 wlan_ps() {
-    for i in $(sysctl -n net.wlan.devices 2>/dev/null); do
-        ifconfig "$i" "$1" >/dev/null 2>&1
+    for i in $(ifconfig -l); do
+        case "$i" in wlan*) ifconfig "$i" "$1" >/dev/null 2>&1 ;; esac
     done
 }
 
 case "${1:-status}" in
-    performance) epp_set performance;       wlan_ps -powersave ;;
-    balanced)    epp_set balance_performance; wlan_ps -powersave ;;
-    power)       epp_set power;             wlan_ps powersave ;;
+    performance) epp_set 0;   wlan_ps -powersave ;;
+    balanced)    epp_set 50;  wlan_ps -powersave ;;
+    power)       epp_set 100; wlan_ps powersave ;;
     ac) # devd hook — choose by mains state
         if [ "$(sysctl -n hw.acpi.acline 2>/dev/null)" = "1" ]; then
             "$0" balanced
@@ -35,9 +37,8 @@ case "${1:-status}" in
     status)
         echo "ac:     $(sysctl -n hw.acpi.acline 2>/dev/null)"
         echo "freq:   $(sysctl -n dev.cpu.0.freq 2>/dev/null) MHz"
-        for mib in $EPP_MIBS; do
-            v=$(sysctl -n "$mib" 2>/dev/null) && echo "epp:    $v ($mib)" && break
-        done
+        mib=$(epp_mibs | head -1)
+        [ -n "$mib" ] && echo "epp:    $(sysctl -n "$mib") ($mib)"
         acpiconf -i0 2>/dev/null | awk '/Remaining capacity|Present rate|State:/ {sub(/^ */,""); print "bat:    " $0}'
         ;;
     *) echo "usage: vellum-power performance|balanced|power|ac|status" >&2; exit 1 ;;

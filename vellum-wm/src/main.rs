@@ -12,8 +12,8 @@ use penrose::{
     builtin::{
         actions::{
             exit,
-            floating::{MouseDragHandler, MouseResizeHandler, sink_focused},
-            modify_with, send_layout_message, spawn,
+            floating::{MouseDragHandler, MouseResizeHandler, float_focused, sink_focused},
+            key_handler, modify_with, send_layout_message, spawn,
         },
         layout::{
             MainAndStack, Monocle,
@@ -29,12 +29,14 @@ use penrose::{
         },
         layout::LayoutStack,
     },
-    extensions::hooks::add_ewmh_hooks,
+    extensions::{actions::toggle_fullscreen, hooks::add_ewmh_hooks},
     map, stack,
+    util::spawn_with_args,
     x11rb::RustConn,
     Result,
 };
 use std::collections::HashMap;
+use tracing_subscriber::util::SubscriberInitExt;
 
 const TERMINAL: &str = "alacritty";
 const LAUNCHER: &str = "rofi -show drun";
@@ -45,6 +47,12 @@ const TN_ACCENT: u32 = 0x7aa2f7ff;    // blue accent — focused border
 const TN_GREY: u32 = 0x414868ff;      // unfocused border
 
 const BAR_HEIGHT_PX: u32 = 28; // reserved for polybar
+
+/// penrose's `spawn` execs argv split on whitespace — no shell. Use this for
+/// commands that need `$VAR`/`$(...)` expansion.
+fn spawn_sh(cmd: &'static str) -> Box<dyn KeyEventHandler<RustConn>> {
+    key_handler(move |_, _| spawn_with_args("sh", &["-c", cmd]))
+}
 
 /// Parse `#rrggbb` -> 0xRRGGBBAA (opaque). None on anything else.
 fn hex_color(s: &str) -> Option<u32> {
@@ -111,7 +119,7 @@ fn raw_key_bindings() -> HashMap<String, Box<dyn KeyEventHandler<RustConn>>> {
 
         // window ops
         "M-q" => modify_with(|cs| cs.kill_focused()),
-        "M-S-f" => penrose::extensions::actions::toggle_fullscreen(),
+        "M-S-f" => toggle_fullscreen(),
 
         // apps — Omarchy defaults
         "M-Return" => spawn(TERMINAL),
@@ -121,7 +129,7 @@ fn raw_key_bindings() -> HashMap<String, Box<dyn KeyEventHandler<RustConn>>> {
         "M-f" => spawn("thunar"),
 
         // floating toggle (Omarchy: Super+V)
-        "M-v" => penrose::builtin::actions::floating::float_focused(),
+        "M-v" => float_focused(),
         "M-S-v" => sink_focused(),
 
         // session
@@ -130,14 +138,15 @@ fn raw_key_bindings() -> HashMap<String, Box<dyn KeyEventHandler<RustConn>>> {
         "M-S-Escape" => spawn("doas zzz"),   // suspend (nopass via doas)
 
         // screenshot (Omarchy: Print)
-        "Print" => spawn("maim $HOME/screenshot-$(date +%Y%m%d-%H%M%S).png"),
+        "Print" => spawn_sh("maim \"$HOME/screenshot-$(date +%Y%m%d-%H%M%S).png\""),
 
-        // media / brightness keys — FreeBSD-native tools
-        "XF86AudioRaiseVolume" => spawn("mixer vol=+5"),
-        "XF86AudioLowerVolume" => spawn("mixer vol=-5"),
-        "XF86AudioMute"        => spawn("mixer vol.mute"),
-        "XF86MonBrightnessUp"   => spawn("backlight +10"),
-        "XF86MonBrightnessDown" => spawn("backlight -10"),
+        // media / brightness keys — FreeBSD-native tools (mixer(8) needs
+        // the % suffix for relative steps; backlight(8) takes incr/decr)
+        "XF86AudioRaiseVolume" => spawn("mixer vol=+5%"),
+        "XF86AudioLowerVolume" => spawn("mixer vol=-5%"),
+        "XF86AudioMute"        => spawn("mixer vol.mute=toggle"),
+        "XF86MonBrightnessUp"   => spawn("backlight incr 10"),
+        "XF86MonBrightnessDown" => spawn("backlight decr 10"),
     };
 
     for tag in &["1", "2", "3", "4", "5", "6", "7", "8", "9"] {
@@ -190,8 +199,8 @@ fn main() -> Result<()> {
     let (focused, unfocused) = theme_borders();
     let config = add_ewmh_hooks(Config {
         border_width: BORDER_PX,
-        focused_border: focused,
-        unfocused_border: unfocused,
+        focused_border: focused.into(),
+        normal_border: unfocused.into(),
         default_layouts: layouts(),
         ..Config::default()
     });

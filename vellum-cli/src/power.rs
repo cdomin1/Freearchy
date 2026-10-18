@@ -6,7 +6,26 @@ use anyhow::{bail, Result};
 
 use crate::util;
 
-const EPP_MIBS: [&str; 2] = ["dev.hwpstate_intel.0.epp", "dev.hwpstate_amd.0.epp"];
+/// Per-CPU EPP sysctls take an integer 0 (performance) … 100 (efficiency),
+/// see hwpstate_intel(4). One OID per core: dev.hwpstate_intel.N.epp.
+const EPP_DRIVERS: [&str; 2] = ["dev.hwpstate_intel", "dev.hwpstate_amd"];
+
+/// (profile, EPP) — mirrors Linux's performance / balance_performance /
+/// power hints rescaled from 0–255 to FreeBSD's 0–100.
+const PROFILES: [(&str, u8); 3] = [("performance", 0), ("balanced", 50), ("power", 100)];
+
+fn epp_mibs() -> Vec<String> {
+    EPP_DRIVERS
+        .iter()
+        .filter_map(|d| util::capture("sysctl", &["-N", d]))
+        .flat_map(|out| {
+            out.lines()
+                .filter(|l| l.ends_with(".epp"))
+                .map(String::from)
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
 
 fn acpi_call(call: &str) -> Result<()> {
     // FreeBSD's acpi_call utility: `acpi_call -i "<method> <arg>"`
@@ -52,40 +71,27 @@ fn sysctl_get(mib: &str) -> Option<String> {
     util::capture("sysctl", &["-n", mib]).map(|s| s.trim().to_string())
 }
 
-fn epp_set(v: &str) {
-    for mib in EPP_MIBS {
-        if sysctl_get(mib).is_some() {
-            let _ = util::capture("sysctl", &[&format!("{mib}={v}")]);
-            return;
-        }
+fn epp_set(v: u8) {
+    for mib in epp_mibs() {
+        let _ = util::capture("sysctl", &[&format!("{mib}={v}")]);
     }
 }
 
 fn wlan_ps(on: bool) {
+    // powersave is set on the wlanN clone, not the parent (iwlwifi0 …)
     let arg = if on { "powersave" } else { "-powersave" };
-    if let Some(devs) = sysctl_get("net.wlan.devices") {
-        for i in devs.split_whitespace() {
-            let _ = util::capture("ifconfig", &[i, arg]);
-        }
+    let ifs = util::capture("ifconfig", &["-l"]).unwrap_or_default();
+    for i in ifs.split_whitespace().filter(|i| i.starts_with("wlan")) {
+        let _ = util::capture("ifconfig", &[i, arg]);
     }
 }
 
 pub fn set(mode: &str) -> Result<()> {
-    match mode {
-        "performance" => {
-            epp_set("performance");
-            wlan_ps(false);
-        }
-        "balanced" => {
-            epp_set("balance_performance");
-            wlan_ps(false);
-        }
-        "power" => {
-            epp_set("power");
-            wlan_ps(true);
-        }
-        _ => bail!("unknown profile '{mode}' — use performance|balanced|power"),
-    }
+    let Some(&(_, epp)) = PROFILES.iter().find(|(p, _)| *p == mode) else {
+        bail!("unknown profile '{mode}' — use performance|balanced|power");
+    };
+    epp_set(epp);
+    wlan_ps(mode == "power");
     println!("power profile: {mode}");
     Ok(())
 }
@@ -97,11 +103,12 @@ pub fn status() -> Result<()> {
     if let Some(f) = sysctl_get("dev.cpu.0.freq") {
         println!("freq:  {f} MHz");
     }
-    for mib in EPP_MIBS {
-        if let Some(v) = sysctl_get(mib) {
-            println!("epp:   {v}");
-            break;
-        }
+    if let Some(v) = epp_mibs().first().and_then(|m| sysctl_get(m)) {
+        let name = PROFILES
+            .iter()
+            .find(|(_, e)| e.to_string() == v)
+            .map_or("custom", |(p, _)| p);
+        println!("epp:   {v} ({name})");
     }
     if let Some(out) = util::capture("acpiconf", &["-i0"]) {
         for line in out.lines() {

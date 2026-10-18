@@ -16,7 +16,8 @@ real hardware with working KMS.
 ## Phase 2 — X11 desktop (done)
 - [x] `vellum-wm`: penrose/x11rb tiling WM, Omarchy keymap, EWMH, gaps,
       theme-driven border colors
-- [x] pijulius/picom `next` branch — window animations (zoom/slide)
+- [x] picom 13 from packages — native open/close/tiling-move animations
+      (replaced the pijulius fork build)
 - [x] polybar Tokyo Night panel (EWMH workspaces, FreeBSD-native net/vol/bat
       via ifconfig/mixer/acpiconf — no Linux `/proc`/`sys` modules)
 - [x] rofi launcher, alacritty, feh wallpaper, xfce4-notifyd, slock, maim

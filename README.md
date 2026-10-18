@@ -14,7 +14,7 @@ is the one that ships.
 |---|---|---|
 | Base OS | FreeBSD 15.x RELEASE | ZFS root + `bectl` boot environments = the Omarchy snapshot story, natively |
 | Window manager | `vellum-wm` — Rust on penrose/x11rb | Xorg needs no seatd/KMS handshake; Omarchy keymap, tiling + workspaces + EWMH |
-| Compositor | pijulius/picom (`next`) | Spring-physics window animations — the Hyprland feel on X11. Built from source (`x11/build-picom.sh`) |
+| Compositor | picom 13 (`x11-wm/picom`) | Native open/close + tiling-move animations, rounded corners, shadows — the Hyprland feel on X11, straight from packages |
 | Panel | polybar | Tokyo Night bar: EWMH workspaces, window title, FreeBSD-native wifi/vol/bat script modules |
 | Launcher | rofi | `Super+Space`, themed from the active palette |
 | Terminal | alacritty | `Super+Return`, themed |
@@ -73,25 +73,31 @@ found; an xorg.conf.d pin keeps hybrid laptops on the iGPU.
 ## Quick start — installer image (pre-alpha)
 
 Download `vellum-15.1-amd64-memstick.img.xz` from the latest
-[release](https://github.com/cdomin1/Vellum/releases), write to USB:
+[release](https://github.com/cdomin1/vellum/releases), write to USB:
 
 ```sh
 unxz vellum-*.img.xz
 dd if=vellum-*.img of=/dev/daN bs=1m conv=sync   # or balenaEtcher
 ```
 
-Boot → the Vellum wizard runs on the console: keymap → user → hostname →
-disk → erase-confirm → install → reboot. **Ethernet required** (live env
-fetches base dists + payload over the network).
+Boot → quiet VELLUM splash → the wizard runs on the console: keymap → user
+→ hostname → disk → erase-confirm → install → reboot. **Ethernet required**
+(live env fetches base dists + payload over the network). The first boot of
+the installed system finishes setup (packages, vellum-wm build, configs —
+progress in `/var/log/vellum-firstboot.log`); then log in and `startx`.
 
 ## Quick start — on an existing FreeBSD install
 
+Fresh FreeBSD has no sudo/doas, so run it as root from your own login:
+
 ```sh
-fetch https://raw.githubusercontent.com/cdomin1/Vellum/main/boot.sh -o - | sh
+su -
+fetch https://raw.githubusercontent.com/cdomin1/vellum/main/boot.sh -o - | sh
 ```
 
-`boot.sh` installs git + rust, clones this repo to `~/.local/share/vellum`,
-builds the CLI, and runs `vellum install`. Then `startx`.
+`boot.sh` installs git + rust, clones this repo to your
+`~/.local/share/vellum`, builds the CLI, and runs `vellum install` for the
+user who ran `su` (override with `VELLUM_USER=name`). Then `startx`.
 
 ## Layout
 
@@ -99,19 +105,22 @@ builds the CLI, and runs `vellum install`. Then `startx`.
 vellum-cli/   Rust CLI: install / update / theme / power / doctor / image / install-system
 vellum-wm/    X11 tiling WM (penrose/x11rb) — the desktop core
 vellum-bt/    BlueZ-compatible D-Bus daemon over FreeBSD HCI (scaffold)
-packages/     pkg manifests (base, xorg, hyprland*, shell*, desktop, dev, ai*)
-config/x11/   xinitrc, picom.conf, rofi, alacritty, polybar, prime-run
+packages/     pkg manifests (base, xorg, hyprland*, shell*, desktop, dev, ai†)
+config/x11/   xinitrc, picom.conf, rofi, alacritty, polybar (+ scripts), gtk, prime-run
 config/power/ rc.suspend/rc.resume, devd AC hook, profile script
 config/hyprland/  Wayland session (shelved)
 themes/       22 Omarchy palettes + wallpapers
-image/        Bootable memstick-image builder (CI: .github/workflows/iso.yml)
-x11/          build-picom.sh (animated picom fork)
+image/        Bootable memstick-image builder, splash, first-boot service
+              (CI: .github/workflows/iso.yml)
+scripts/      gen-splash.py (boot splash from the logo), screenshot.sh (CI)
+site/         Landing page (GitHub Pages)
 shell/        Caelestia FreeBSD port notes (shelved)
 docs/         roadmap + testing notes
 ```
 
-\* hyprland/shell/ai manifests install the shelved Wayland stack + optional
-AI CLIs — kept, but X11 is the tested path.
+\* hyprland/shell manifests install the shelved Wayland stack — kept, but
+X11 is the tested path. † `ai.txt` is kept for a later phase and not
+installed.
 
 ## Philosophy
 

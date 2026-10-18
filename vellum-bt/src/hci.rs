@@ -6,13 +6,18 @@
 //! written directly; events read back in the same socket. This module
 //! owns that framing so adapter.rs/device.rs stay D-Bus-shaped.
 
+// Scaffold: nothing drives the socket yet (adapter.rs still stubs HCI).
+#![allow(dead_code)]
+
 use anyhow::Result;
 use std::os::unix::io::RawFd;
 
-// FreeBSD socket constants (netgraph/bluetooth/include/ng_btsocket.h).
-const AF_BLUETOOTH: libc::c_int = 32;          // verify on 15.x headers
+// FreeBSD socket constants, verified against releng/15.0 headers:
+// sys/socket.h, netgraph/bluetooth/include/ng_btsocket.h, ng_hci.h.
+const AF_BLUETOOTH: libc::c_int = 36;          // 32 is AF_NETGRAPH
 const SOCK_RAW: libc::c_int = 3;
-const BLUETOOTH_PROTO_HCI: libc::c_int = 1;    // NG_HCI
+const BLUETOOTH_PROTO_HCI: libc::c_int = 134;
+const NG_HCI_CMD_PKT: u8 = 0x01;               // ng_hci_cmd_pkt_t.type
 
 // OGF/OCF for the commands we need.
 pub const OGF_LINK_CONTROL: u16 = 0x01;
@@ -51,23 +56,24 @@ impl HciSocket {
     pub fn open(node: &str) -> Result<Self> {
         let fd = unsafe { libc::socket(AF_BLUETOOTH, SOCK_RAW, BLUETOOTH_PROTO_HCI) };
         if fd < 0 {
-            return Err(std::io::Error::last_os_error()).map_err(Into::into);
+            return Err(std::io::Error::last_os_error().into());
         }
         // TODO: bind(fd, sockaddr_hci{node}) — without bind the socket
         // receives events from all HCI nodes.
         Ok(Self { fd, node: node.to_string() })
     }
 
-    /// Send an HCI command packet: opcode(2 LE) + plen(1) + params.
+    /// Send an HCI command packet: type(0x01) + opcode(2 LE) + plen(1) + params.
     pub fn command(&self, ogf: u16, ocf: u16, params: &[u8]) -> Result<()> {
         let opcode = (ogf << 10) | ocf;
-        let mut pkt = Vec::with_capacity(3 + params.len());
+        let mut pkt = Vec::with_capacity(4 + params.len());
+        pkt.push(NG_HCI_CMD_PKT);
         pkt.extend_from_slice(&opcode.to_le_bytes());
         pkt.push(params.len() as u8);
         pkt.extend_from_slice(params);
         let n = unsafe { libc::write(self.fd, pkt.as_ptr() as _, pkt.len()) };
         if n < 0 {
-            return Err(std::io::Error::last_os_error()).map_err(Into::into);
+            return Err(std::io::Error::last_os_error().into());
         }
         Ok(())
     }

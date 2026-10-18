@@ -1,15 +1,21 @@
 use anyhow::{bail, Context, Result};
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Where the vellum repo lives on an installed system.
-/// Omarchy uses ~/.local/share/omarchy; we mirror that convention.
+/// Omarchy uses ~/.local/share/omarchy; we mirror that convention. Systems
+/// laid down by `install-system` carry the payload in /usr/local/vellum.
 pub fn repo_root() -> Result<PathBuf> {
+    const SYSTEM_PAYLOAD: &str = "/usr/local/vellum";
     if let Ok(p) = env::var("VELLUM_HOME") {
         return Ok(PathBuf::from(p));
     }
-    Ok(home()?.join(".local/share/vellum"))
+    let user = home()?.join(".local/share/vellum");
+    if !user.join("themes").is_dir() && Path::new(SYSTEM_PAYLOAD).join("themes").is_dir() {
+        return Ok(PathBuf::from(SYSTEM_PAYLOAD));
+    }
+    Ok(user)
 }
 
 pub fn home() -> Result<PathBuf> {

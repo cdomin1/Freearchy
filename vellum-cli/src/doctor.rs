@@ -17,8 +17,8 @@ const CHECKS: &[Check] = &[
     Check { name: "vellum-wm installed", run: || bin("vellum-wm") },
     Check { name: "Xorg installed", run: || bin("Xorg") },
     Check { name: "picom installed", run: || bin("picom") },
-    Check { name: "hyprland installed (wayland shelf)", run: || bin("hyprland") },
-    Check { name: "quickshell installed", run: || bin("quickshell") },
+    Check { name: "hyprland installed (wayland shelf)", run: || optional_bin("hyprland") },
+    Check { name: "quickshell installed (wayland shelf)", run: || optional_bin("quickshell") },
     Check { name: "polybar installed", run: || bin("polybar") },
     Check { name: "alacritty installed", run: || bin("alacritty") },
     Check { name: "rofi installed", run: || bin("rofi") },
@@ -30,7 +30,9 @@ const CHECKS: &[Check] = &[
     Check { name: "gpu detected / driver", run: gpu_state },
     Check { name: "drm kms module loaded", run: kms_loaded },
     Check { name: "XDG_RUNTIME_DIR set", run: xdg_runtime_dir },
-    Check { name: "hyprland config linked", run: hypr_config },
+    Check { name: "xinitrc linked", run: xinitrc },
+    Check { name: "theme active", run: theme_active },
+    Check { name: "hyprland config linked (wayland shelf)", run: hypr_config },
     Check { name: "suspend support", run: sleep_state },
     Check { name: "apple hardware", run: apple_hardware },
 ];
@@ -40,6 +42,14 @@ fn bin(name: &str) -> CheckResult {
         CheckResult::Ok(name.into())
     } else {
         CheckResult::Fail(format!("{name} not on PATH"))
+    }
+}
+
+/// Shelved components: report presence, never count as a failure.
+fn optional_bin(name: &str) -> CheckResult {
+    match bin(name) {
+        CheckResult::Fail(msg) => CheckResult::Warn(msg),
+        ok => ok,
     }
 }
 
@@ -102,7 +112,8 @@ fn kms_loaded() -> CheckResult {
             return CheckResult::Ok(m.into());
         }
     }
-    CheckResult::Fail("no kms module loaded — see docs (sysrc kld_list)".into())
+    // X11 still runs on the EFI framebuffer (scfb) — fine in VMs.
+    CheckResult::Warn("no kms module loaded — X11 falls back to scfb (sysrc kld_list)".into())
 }
 
 fn xdg_runtime_dir() -> CheckResult {
@@ -115,12 +126,34 @@ fn xdg_runtime_dir() -> CheckResult {
 fn hypr_config() -> CheckResult {
     let path = match util::config_home() {
         Ok(p) => p.join("hypr/hyprland.conf"),
-        Err(_) => return CheckResult::Fail("no config home".into()),
+        Err(_) => return CheckResult::Warn("no config home".into()),
     };
     if path.exists() {
         CheckResult::Ok(path.display().to_string())
     } else {
-        CheckResult::Fail(format!("{} missing", path.display()))
+        CheckResult::Warn(format!("{} missing", path.display()))
+    }
+}
+
+fn xinitrc() -> CheckResult {
+    match util::home() {
+        Ok(h) if h.join(".xinitrc").exists() => CheckResult::Ok("~/.xinitrc → vellum session".into()),
+        Ok(_) => CheckResult::Fail("~/.xinitrc missing — run `vellum update`".into()),
+        Err(_) => CheckResult::Fail("HOME unset".into()),
+    }
+}
+
+fn theme_active() -> CheckResult {
+    let link = match util::config_home() {
+        Ok(c) => c.join("vellum/current/theme"),
+        Err(_) => return CheckResult::Fail("no config home".into()),
+    };
+    match std::fs::read_link(&link) {
+        Ok(t) if t.is_dir() => CheckResult::Ok(
+            t.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+        ),
+        Ok(t) => CheckResult::Fail(format!("theme link points at missing {}", t.display())),
+        Err(_) => CheckResult::Fail("no theme set — `vellum theme set tokyo-night`".into()),
     }
 }
 
@@ -181,7 +214,7 @@ pub fn run() -> Result<()> {
         }
     }
     if failures > 0 {
-        println!("\n{failures} check(s) failed.");
+        anyhow::bail!("{failures} check(s) failed");
     }
     Ok(())
 }
