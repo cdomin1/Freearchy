@@ -94,8 +94,23 @@ fn raw_key_bindings() -> HashMap<String, Box<dyn KeyEventHandler<RustConn>>> {
         "M-b" => spawn("firefox"),
         "M-f" => spawn("nemo"),
 
+        // floating toggle (Omarchy: Super+V)
+        "M-v" => penrose::builtin::actions::floating::float_focused(),
+        "M-S-v" => sink_focused(),
+
         // session
         "M-S-q" => exit(),
+        "M-Escape" => spawn("slock"),
+
+        // screenshot (Omarchy: Print)
+        "Print" => spawn("maim $HOME/screenshot-$(date +%Y%m%d-%H%M%S).png"),
+
+        // media / brightness keys — FreeBSD-native tools
+        "XF86AudioRaiseVolume" => spawn("mixer vol=+5"),
+        "XF86AudioLowerVolume" => spawn("mixer vol=-5"),
+        "XF86AudioMute"        => spawn("mixer vol.mute"),
+        "XF86MonBrightnessUp"   => spawn("backlight +10"),
+        "XF86MonBrightnessDown" => spawn("backlight -10"),
     };
 
     for tag in &["1", "2", "3", "4", "5", "6", "7", "8", "9"] {
