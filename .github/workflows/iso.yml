@@ -2,7 +2,10 @@ name: iso
 
 # Builds the amd64 freearchy binary on real FreeBSD and remasters the
 # official 15.1 memstick image into a bootable Freearchy installer.
-# Trigger manually (pre-alpha) or by pushing a v* tag (attaches to release).
+#
+# Trigger manually (pre-alpha smoke test) or by pushing a v* tag (also
+# creates a release with the img.xz attached — uploaded straight from the
+# VM, so the run does not depend on vmactions' workdir sync).
 
 on:
   workflow_dispatch:
@@ -18,32 +21,48 @@ jobs:
     # macos-15-intel is the post-macos-13-retirement Intel label.
     runs-on: macos-15-intel
     steps:
-      - uses: actions/checkout@v4
-
       - name: Build freearchy + remaster image inside FreeBSD VM
         uses: vmactions/freebsd-vm@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           release: "15.1"
           mem: 6144
           usesh: true
-          sync: sshfs
-          copyback: true
+          copyback: false
+          env: |
+            GH_TOKEN
+            GITHUB_REF_NAME
+            GITHUB_REF_TYPE
           run: |
             set -ex
-            pkg install -y rust git-lite
-            cargo build --release --manifest-path "$GITHUB_WORKSPACE/Cargo.toml" -p freearchy
-            strip "$GITHUB_WORKSPACE/target/release/freearchy"
-            cd "$GITHUB_WORKSPACE"
+            pkg install -y rust git-lite curl
+            git clone --depth 1 ${GITHUB_REF_TYPE:+--branch "${GITHUB_REF_NAME}"} \
+                https://github.com/cdomin1/Freearchy.git ~/freearchy || \
+                git clone --depth 1 https://github.com/cdomin1/Freearchy.git ~/freearchy
+            cd ~/freearchy
+            cargo build --release -p freearchy
+            strip target/release/freearchy
             FREEARCHY_BIN="$PWD/target/release/freearchy" sh image/build-image.sh 15.1
             xz -T0 FreeBSD-15.1-RELEASE-amd64-memstick.img
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: freearchy-15.1-amd64-memstick
-          path: "**/FreeBSD-15.1-RELEASE-amd64-memstick.img.xz"
-
-      - name: Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: "**/FreeBSD-15.1-RELEASE-amd64-memstick.img.xz"
+            # Tag builds: create-or-reuse the release, upload the img.xz.
+            if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+                REPO=cdomin1/Freearchy
+                TAG="$GITHUB_REF_NAME"
+                API="https://api.github.com/repos/$REPO"
+                RID=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" \
+                        "$API/releases/tags/$TAG" | sed -n 's/.*"id": \([0-9]*\).*/\1/p' | head -1)
+                if [ -z "$RID" ]; then
+                    RID=$(curl -sf -X POST -H "Authorization: Bearer $GH_TOKEN" \
+                        -H "Content-Type: application/json" \
+                        -d "{\"tag_name\":\"$TAG\",\"name\":\"$TAG\",\"prerelease\":true}" \
+                        "$API/releases" | sed -n 's/.*"id": \([0-9]*\).*/\1/p' | head -1)
+                fi
+                [ -n "$RID" ] || { echo "!! could not create/get release" >&2; exit 1; }
+                curl -sf -X POST -H "Authorization: Bearer $GH_TOKEN" \
+                    -H "Content-Type: application/octet-stream" \
+                    --data-binary @FreeBSD-15.1-RELEASE-amd64-memstick.img.xz \
+                    "https://uploads.github.com/repos/$REPO/releases/$RID/assets?name=freearchy-15.1-amd64-memstick.img.xz" \
+                    >/dev/null
+                echo "uploaded freearchy-15.1-amd64-memstick.img.xz to release $RID"
+            fi
