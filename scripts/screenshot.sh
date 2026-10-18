@@ -15,7 +15,7 @@ $SUDO pkg install -y rust xorg-vfbserver xset xrandr xmodmap xinit xauth \
     polybar alacritty rofi feh maim dejavu xterm fastfetch btop xdotool
 
 cd "$REPO"
-cargo build --release -p vellum-wm -p vellum-cli
+cargo build --release -p vellum -p vellum-wm
 export PATH="$REPO/target/release:$PATH"
 
 # ---- configs (same layout `vellum install` links) ----
