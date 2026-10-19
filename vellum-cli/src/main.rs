@@ -61,6 +61,17 @@ enum Command {
         /// Non-interactive: accept defaults, no prompts. USE WITH CARE.
         #[arg(long)]
         yes: bool,
+        /// KEY=VALUE config file (gum wizard / unattended install).
+        /// erase=yes in the file is the destructive confirmation.
+        #[arg(long)]
+        config: Option<String>,
+        /// Print the candidate install disks (name + label) and exit.
+        #[arg(long)]
+        list_disks: bool,
+        /// Legacy ratatui full-screen wizard (the live media uses the
+        /// inline vellum-setup script instead).
+        #[arg(long)]
+        tui: bool,
         /// Serve a browser-based installer UI instead of the TUI
         #[arg(long)]
         web: bool,
@@ -169,11 +180,13 @@ fn main() -> Result<()> {
             ThemeCommand::Set { name } => theme::set(&name),
             ThemeCommand::Next => theme::next(),
         },
-        Command::InstallSystem { disk, hostname, user, yes, web, port } => {
+        Command::InstallSystem { disk, hostname, user, yes, config, list_disks, tui, web, port } => {
             if web {
                 web_install::serve(port)
+            } else if list_disks {
+                install_system::print_disks()
             } else {
-                install_system::run(disk, hostname, user, yes)
+                install_system::run(disk, hostname, user, config, tui, yes)
             }
         }
         Command::Power { command } => match command {

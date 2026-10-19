@@ -6,17 +6,42 @@
 #
 # inject_vellum <root>  applies to a mounted/copied installer root:
 #   - /usr/local/bin/vellum-install  console launcher (replaces bsdinstall)
+#   - /usr/local/bin/vellum-setup    inline gum wizard (config → engine)
 #   - /usr/local/bin/vellum          prebuilt CLI (if VELLUM_BIN set)
+#   - /usr/local/bin/gum             static Charm gum binary for the arch
 #   - patched /etc/rc.local           runs our launcher via runconsoles
 #   - loader.conf quiet boot + VELLUM splash
 inject_vellum() {
     ROOT="$1"
     [ -d "$ROOT/etc" ] || { echo "!! $ROOT doesn't look like a FreeBSD root" >&2; return 1; }
 
-    echo "==> Injecting vellum launcher into $ROOT"
+    echo "==> Injecting vellum installer into $ROOT"
     mkdir -p "$ROOT/usr/local/bin"
     cp "$REPO/image/vellum-install" "$ROOT/usr/local/bin/vellum-install"
-    chmod 755 "$ROOT/usr/local/bin/vellum-install"
+    cp "$REPO/image/vellum-setup" "$ROOT/usr/local/bin/vellum-setup"
+    chmod 755 "$ROOT/usr/local/bin/vellum-install" "$ROOT/usr/local/bin/vellum-setup"
+
+    # Static gum for the wizard's inline prompts. ARCH comes from the build
+    # scripts; fall back to the build host's arch. If the fetch fails the
+    # wizard still works — it degrades to plain POSIX prompts.
+    GUM_VER=2.0.2
+    case "${ARCH:-$(uname -m)}" in
+        amd64|x86_64) GUM_ARCH=x86_64 ;;
+        arm64|aarch64) GUM_ARCH=arm64 ;;
+        *) GUM_ARCH="" ;;
+    esac
+    if [ -n "$GUM_ARCH" ]; then
+        GUM_URL="https://github.com/charmbracelet/gum/releases/download/v${GUM_VER}/gum_${GUM_VER}_Freebsd_${GUM_ARCH}.tar.gz"
+        GTMP=$(mktemp -d)
+        if fetch -qo "$GTMP/gum.tar.gz" "$GUM_URL" && tar -xzf "$GTMP/gum.tar.gz" -C "$GTMP" gum 2>/dev/null; then
+            cp "$GTMP/gum" "$ROOT/usr/local/bin/gum"
+            chmod 755 "$ROOT/usr/local/bin/gum"
+            echo "==> Embedded gum $GUM_VER ($GUM_ARCH)"
+        else
+            echo "!! gum fetch failed — wizard will use plain prompts" >&2
+        fi
+        rm -rf "$GTMP"
+    fi
 
     if [ -n "$VELLUM_BIN" ] && [ -f "$VELLUM_BIN" ]; then
         echo "==> Embedding vellum binary ($VELLUM_BIN)"

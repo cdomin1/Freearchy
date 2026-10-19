@@ -35,8 +35,13 @@ Shell scripts: `sh -n <file>` (no shellcheck installed).
   in vellum-wm for `$VAR` / `$(...)`.
 - FreeBSD `mixer(8)` relative steps need `%` (`vol=+5%`); `backlight(8)`
   takes `incr|decr N`; hwpstate EPP sysctls are integers 0–100 per CPU.
-- install-system runs under the ratatui TUI: pipeline commands go through
-  `install_system::sh` (captured output), never `util::run` (prints).
+- install-system's live path is `image/vellum-setup` — an inline gum wizard
+  (Omarchy-style, no alt-screen) that writes a KEY=VALUE config and calls
+  `vellum install-system --config`. The ratatui wizard remains as
+  `vellum install-system --tui` but is not the default. Engine pipeline
+  commands go through `install_system::sh` (captured output), never
+  `util::run` (prints). gum is embedded statically by `image/inject.sh`;
+  the wizard degrades to POSIX prompts if it's missing.
 - First boot only runs because the installer writes `/firstboot`; the rc
   script configures `vellum_firstboot_user`'s home via `SUDO_USER`.
 - Boot splash: regenerate `image/splash.png` with `scripts/gen-splash.py`

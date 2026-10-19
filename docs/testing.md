@@ -124,8 +124,10 @@ startx                         # ~/.xinitrc → vellum-wm + picom + polybar
 `image/build-image.sh` (default ARCH=amd64; the amd64 binary is built by the
 `iso` GitHub workflow on tag/dispatch) remasters the official memstick:
 `rc.local` runs `vellum-install` per console → DHCP on all NICs →
-`vellum install-system` TUI. Falls back to stock bsdinstall if the
-binary is absent. Live env needs **ethernet** (dists + payload are fetched;
+`vellum-setup`, an inline gum wizard (Omarchy-style — no alt-screen) that
+writes a KEY=VALUE config and runs `vellum install-system --config`. A
+`vellum-install.conf` on any attached drive triggers an unattended
+install. Falls back to stock bsdinstall if the binary is absent. Live env needs **ethernet** (dists + payload are fetched;
 no wifi provisioning yet).
 
 Boot the built image the same way (UTM/Parallels from the .img, or dd to

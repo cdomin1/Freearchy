@@ -70,16 +70,18 @@ if [ ! -f /tmp/.vellum-net ]; then
     done
 fi
 
-if [ ! -x /usr/local/bin/vellum ]; then
-    echo "vellum binary not found on this media; starting stock bsdinstall."
+if [ ! -x /usr/local/bin/vellum ] || [ ! -x /usr/local/bin/vellum-setup ]; then
+    echo "vellum installer not found on this media; starting stock bsdinstall."
     sleep 2
     exec /usr/libexec/bsdinstall/startbsdinstall "$1"
 fi
 
-/usr/local/bin/vellum install-system
+# Inline wizard (gum prompts → config → install engine). No alt-screen, so
+# nothing below fights the console.
+/usr/local/bin/vellum-setup
 rc=$?
 
 echo
-echo "vellum install-system exited (status $rc)."
-echo "Rerun with 'vellum install-system'; 'exit' returns to runconsoles."
+echo "vellum-setup exited (status $rc)."
+echo "Rerun with 'vellum-setup'; 'exit' returns to runconsoles."
 /bin/sh

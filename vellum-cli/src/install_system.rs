@@ -28,6 +28,7 @@ const REPO_TARBALL: &str =
 
 /// Fully-specified install request — produced by the TUI wizard, CLI flags,
 /// or the web installer. `execute` runs the same pipeline for all of them.
+#[derive(Debug)]
 pub struct InstallSpec {
     pub disk: String,
     pub hostname: String,
@@ -38,18 +39,65 @@ pub struct InstallSpec {
     pub password: Option<String>,
 }
 
+impl InstallSpec {
+    /// KEY=VALUE config file (written by the gum wizard, or shipped on the
+    /// media for unattended installs). Keys: disk, hostname, username,
+    /// fullname, email, keymap, password, erase.
+    pub fn from_config(path: &str) -> Result<InstallSpec> {
+        let text = fs::read_to_string(path)
+            .with_context(|| format!("reading config {path}"))?;
+        let get = |k: &str| -> Option<String> {
+            text.lines()
+                .filter_map(|l| l.split_once('='))
+                .find(|(key, _)| key.trim() == k)
+                .map(|(_, v)| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+        };
+        let erase = get("erase")
+            .map(|v| matches!(v.as_str(), "y" | "yes" | "1" | "true"))
+            .unwrap_or(false);
+        if !erase {
+            bail!("{path}: erase=yes required — the config is the destructive confirmation");
+        }
+        Ok(InstallSpec {
+            disk: get("disk").context("config missing 'disk'")?,
+            hostname: get("hostname").unwrap_or_else(|| "vellum".into()),
+            username: get("username").context("config missing 'username'")?,
+            fullname: get("fullname"),
+            email: get("email"),
+            keymap: get("keymap").unwrap_or_else(|| "us".into()),
+            password: get("password"),
+        })
+    }
+}
+
 pub fn run(
     disk: Option<String>,
     hostname: Option<String>,
     username: Option<String>,
+    config: Option<String>,
+    tui: bool,
     yes: bool,
 ) -> Result<()> {
     util::ensure_freebsd()?;
     ensure_root()?;
 
-    // No flags at all → full wizard (the live-image path).
-    if !yes && disk.is_none() && hostname.is_none() && username.is_none() {
+    // Config mode — gum wizard / unattended installs. The file's erase=yes
+    // is the destructive confirmation; no further prompts.
+    if let Some(path) = config {
+        let spec = InstallSpec::from_config(&path)?;
+        return execute(&spec, &|m| println!("{m}"));
+    }
+
+    if tui {
         return crate::install_tui::run_wizard();
+    }
+
+    // No flags at all → point at the inline wizard (the live-image path).
+    if !yes && disk.is_none() && hostname.is_none() && username.is_none() {
+        bail!("run 'vellum-setup' on the live media for the guided installer,\n\
+               or pass --config <file> / --disk … --yes for non-interactive use.\n\
+               (--tui still runs the old full-screen wizard.)");
     }
 
     // Flag mode: defaults for anything unset; still confirm unless --yes.
@@ -168,6 +216,15 @@ fn sh(cmd: &str, args: &[&str]) -> Result<()> {
     let tail: Vec<&str> = stderr.lines().rev().take(4).collect();
     let tail: Vec<&str> = tail.into_iter().rev().collect();
     bail!("{cmd} {} failed ({}): {}", args.join(" "), out.status, tail.join(" | "))
+}
+
+/// `vellum install-system --list-disks` — name<TAB>label per candidate,
+/// for the gum wizard's disk chooser.
+pub fn print_disks() -> Result<()> {
+    for (name, label) in disks()? {
+        println!("{name}\t{label}");
+    }
+    Ok(())
 }
 
 // --- disk selection --------------------------------------------------------
@@ -678,5 +735,51 @@ mod tests {
         assert_eq!(xkb_for("us.dvorak"), ("us", "dvorak"));
         assert_eq!(xkb_for("ca-fr"), ("ca", "fr"));
         assert_eq!(xkb_for("de"), ("de", ""));
+    }
+
+    fn conf(body: &str) -> String {
+        let p = std::env::temp_dir()
+            .join(format!("vellum-conf-{}-{}", std::process::id(), body.len()));
+        fs::write(&p, body).unwrap();
+        p.to_string_lossy().into_owned()
+    }
+
+    #[test]
+    fn config_full() {
+        let s = InstallSpec::from_config(&conf(
+            "disk=ada0\nusername=carlos\nhostname=t480\nfullname=Carlos D.\n\
+             email=c@x.y\nkeymap=de\npassword=s3cret\nerase=yes\n",
+        ))
+        .unwrap();
+        assert_eq!(s.disk, "ada0");
+        assert_eq!(s.username, "carlos");
+        assert_eq!(s.hostname, "t480");
+        assert_eq!(s.fullname.as_deref(), Some("Carlos D."));
+        assert_eq!(s.email.as_deref(), Some("c@x.y"));
+        assert_eq!(s.keymap, "de");
+        assert_eq!(s.password.as_deref(), Some("s3cret"));
+    }
+
+    #[test]
+    fn config_requires_erase_confirmation() {
+        for body in [
+            "disk=ada0\nusername=a\n",                    // no erase key
+            "disk=ada0\nusername=a\nerase=no\n",          // explicit no
+            "disk=ada0\nusername=a\nerase=maybe\n",
+        ] {
+            let e = InstallSpec::from_config(&conf(body)).unwrap_err().to_string();
+            assert!(e.contains("erase=yes"), "{body:?} → {e}");
+        }
+    }
+
+    #[test]
+    fn config_required_fields_and_defaults() {
+        assert!(InstallSpec::from_config(&conf("username=a\nerase=yes\n")).is_err());
+        assert!(InstallSpec::from_config(&conf("disk=ada0\nerase=yes\n")).is_err());
+        // Defaults: hostname vellum, keymap us; empty values are absent.
+        let s = InstallSpec::from_config(&conf("disk=ada0\nusername=a\nerase=yes\n")).unwrap();
+        assert_eq!(s.hostname, "vellum");
+        assert_eq!(s.keymap, "us");
+        assert!(s.fullname.is_none() && s.email.is_none() && s.password.is_none());
     }
 }
