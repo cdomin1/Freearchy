@@ -178,7 +178,10 @@ fn wizard_loop(term: &mut DefaultTerminal) -> Result<()> {
                             w.screen = next;
                         }
                     }
-                    KeyCode::Backspace => {
+                    // The backspace key arrives as 0x08 (Backspace),
+                    // 0x7f (Delete in some crossterm mappings, Char on
+                    // others) or ESC[3~ depending on console & TERM.
+                    KeyCode::Backspace | KeyCode::Delete => {
                         input_mut(&mut w).pop();
                     }
                     KeyCode::Char(c) => input_mut(&mut w).push(c),
