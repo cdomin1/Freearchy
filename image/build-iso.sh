@@ -50,6 +50,13 @@ MD=""
 
 inject_vellum "$WORK/tree"
 
+# The kernel mounts the ISO root BY VOLUME LABEL via etc/fstab
+# (/dev/iso9660/<label>) — mkisoimages.sh does the same rewrite. If the
+# label and fstab disagree, boot stalls at mountroot (invisible under
+# boot_mute → black screen).
+LABEL="VELLUM_$(echo "$RELEASE" | tr -d .)_$(echo "$ARCH" | tr '[:lower:]' '[:upper:]')"
+echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$WORK/tree/etc/fstab"
+
 echo "==> Rebuilding ISO ($OUT)"
 # disc1 trees don't ship an ESP image — the release toolchain builds it
 # on the fly from boot/loader.efi (see release/*/mkisoimages.sh:
@@ -80,7 +87,6 @@ if [ "$ARCH" = "amd64" ]; then
     BOOT_ARGS="-o bootimage=i386;$WORK/tree/boot/cdboot -o no-emul-boot $BOOT_ARGS"
 fi
 # shellcheck disable=SC2086 # makefs takes -o key=value pairs unquoted
-LABEL="VELLUM_$(echo "$RELEASE" | tr -d .)_$(echo "$ARCH" | tr '[:lower:]' '[:upper:]')"
 makefs -t cd9660 -o rockridge -o label="$LABEL" \
     $BOOT_ARGS "$OUT" "$WORK/tree"
 

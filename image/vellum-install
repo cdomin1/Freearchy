@@ -6,7 +6,11 @@
 export HOME=/root
 
 # boot_mute keeps the console muted into userland — unmute so the wizard
-# paints, then wipe the splash for a clean hand-off.
+# paints, then wipe the splash for a clean hand-off. Three layers:
+# kern.vt.boot_mute drops the vt splash, kern.consmute/conscontrol
+# re-enable kernel console output.
+sysctl kern.vt.boot_mute=0 >/dev/null 2>&1
+sysctl kern.consmute=0 >/dev/null 2>&1
 conscontrol mute off >/dev/null 2>&1
 clear
 
