@@ -249,6 +249,12 @@ fn base_disk_name(name: &str) -> String {
 
 fn partition(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
     log(&format!("Partitioning {dev}"));
+    // A previous failed run leaves zroot imported on {dev}p2 — the open
+    // consumer blocks gpart destroy. Kill the pool before the table.
+    let p = pool();
+    if pool_exists(&p) && pool_on_dev(&p, dev) {
+        let _ = sh("zpool", &["destroy", "-f", &p]);
+    }
     let _ = sh("gpart", &["destroy", "-F", dev]); // ok if no table
     sh("gpart", &["create", "-s", "gpt", dev])?;
     sh("gpart", &["add", "-a", "4k", "-t", "efi", "-s", "260m", "-l", "efiboot", dev])?;
