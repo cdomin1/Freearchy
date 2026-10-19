@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Try VELLUM in your browser</title>
+<meta name="description" content="Watch a live VELLUM desktop — streamed from a real VM, no download needed.">
+<link rel="icon" type="image/svg+xml" href="vellum-mark.svg">
+<link rel="stylesheet" href="style.css">
+<style>
+  .try-wrap { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .try-frame { width: 100%; aspect-ratio: 16/10; border: 1px solid #3b4261;
+               border-radius: 10px; background: #000; display: block; }
+  .try-note { color: #565f89; font-size: .85rem; margin-top: .8rem; }
+  .try-off { display: flex; align-items: center; justify-content: center;
+             aspect-ratio: 16/10; border: 1px dashed #3b4261; border-radius: 10px;
+             color: #565f89; text-align: center; padding: 2rem; }
+</style>
+</head>
+<body>
+
+<nav>
+  <img class="nav-mark" src="vellum-mark.svg" alt="" aria-hidden="true">
+  <svg class="nav-logo" viewBox="0 0 1920 1080" aria-label="VELLUM">
+    <path d="M263.42,713.12v-350.93h58.49v292.44h58.49v-14.62h14.62v-277.82h58.49v307.07h-14.62v14.62h-14.62v14.62h-14.62v14.62h-146.22Z"/>
+    <path d="M497.38,713.12v-350.93h190.09v58.49h-131.6v87.73h102.35v58.49h-102.35v87.73h131.6v58.49h-190.09Z"/>
+    <path d="M731.33,713.12v-350.93h58.49v292.44h131.6v58.49h-190.09Z"/>
+    <path d="M965.29,713.12v-350.93h58.49v292.44h131.6v58.49h-190.09Z"/>
+    <path d="M1243.11,713.12v-14.62h-14.62v-14.62h-14.62v-14.62h-14.62v-307.07h58.49v277.82h14.62v14.62h43.87v-14.62h14.62v-277.82h58.49v307.07h-14.62v14.62h-14.62v14.62h-14.62v14.62h-102.36Z"/>
+    <path d="M1433.19,713.12v-350.93h58.49v29.24h14.62v29.24h14.62v29.24h14.62v-29.24h14.62v-29.24h14.62v-29.24h14.62v-29.24h58.49v350.93h-58.49v-233.95h-14.62v29.24h-14.62v29.24h-14.62v-29.24h-14.62v-29.24h-14.62v-29.24h-14.62v233.95h-58.49Z"/>
+  </svg>
+  <div class="nav-links">
+    <a href="index.html#features">Features</a>
+    <a href="index.html#themes">Themes</a>
+    <a href="index.html#keys">Keys</a>
+    <a href="https://github.com/cdomin1/vellum">GitHub</a>
+  </div>
+</nav>
+
+<div class="try-wrap">
+  <h2 style="margin-bottom:.4rem">Try VELLUM — live</h2>
+  <p class="try-note" style="margin-top:0">A real VELLUM VM streamed over VNC. View-only — nothing you do affects it, and everyone watching sees the same screen.</p>
+
+  <div id="try-box"></div>
+
+  <p class="try-note">Want the real thing? <a href="index.html">Grab an installer image</a> — USB for bare metal, ISO for Parallels/UTM/VirtualBox.</p>
+</div>
+
+<script>
+// Point this at the demo backend once demo/setup.sh is running on a VPS:
+//   https://<host>/vnc.html?autoconnect=true&view_only=true&resize=scale
+const DEMO_URL = "";
+
+const box = document.getElementById("try-box");
+if (DEMO_URL) {
+  const f = document.createElement("iframe");
+  f.className = "try-frame";
+  f.src = DEMO_URL;
+  f.setAttribute("allow", "clipboard-read; clipboard-write");
+  box.appendChild(f);
+} else {
+  box.innerHTML =
+    '<div class="try-off">The live demo is coming online soon — ' +
+    'the installer images are on the ' +
+    '<a href="https://github.com/cdomin1/vellum/releases">releases page</a>.</div>';
+}
+</script>
+
+</body>
+</html>
