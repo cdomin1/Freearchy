@@ -333,6 +333,9 @@ fn extract_base(log: &dyn Fn(&str)) -> Result<()> {
         }
         sh("tar", &["-xf", &path, "-C", MNT])?;
     }
+    if distdir.starts_with(MNT) {
+        let _ = fs::remove_dir_all(&distdir); // staged download — ~1GB
+    }
     Ok(())
 }
 
@@ -355,14 +358,16 @@ fn dist_dir(log: &dyn Fn(&str)) -> Result<String> {
     let arch = util::capture("uname", &["-m"]).context("uname -m")?;
     let arch = arch.trim();
     let family = if arch == "aarch64" { "arm64" } else { arch };
-    let dir = "/tmp/freebsd-dist";
-    fs::create_dir_all(dir)?;
+    // Stage on the target disk — /tmp on install media is RAM-backed and
+    // too small for kernel.txz+base.txz (~1GB).
+    let dir = format!("{MNT}/freebsd-dist");
+    fs::create_dir_all(&dir)?;
     for set in ["kernel.txz", "base.txz"] {
         log(&format!("Downloading {set} ({rel}, {arch})"));
         let url = format!("https://download.freebsd.org/releases/{family}/{arch}/{rel}/{set}");
-        sh("fetch", &["-q", "-o", &format!("{dir}/{set}"), &url])?;
+        sh("fetch", &["-o", &format!("{dir}/{set}"), &url])?;
     }
-    Ok(dir.into())
+    Ok(dir)
 }
 
 fn boot_loader(dev: &str, log: &dyn Fn(&str)) -> Result<()> {

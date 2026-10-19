@@ -12,6 +12,14 @@ export HOME=/root
 sysctl kern.vt.boot_mute=0 >/dev/null 2>&1
 sysctl kern.consmute=0 >/dev/null 2>&1
 conscontrol mute off >/dev/null 2>&1
+
+# Wire stdio to the real console before anything else: runconsoles can
+# hand us a dead stdin, which leaves the TUI painting but deaf to keys.
+exec </dev/console >/dev/console 2>&1
+
+# RIS (full reset) clears leftover splash pixels and stale boot text —
+# plain `clear` only blanks the text buffer and can race the unmute.
+printf '\033c'
 clear
 
 # Same TERM dance as startbsdinstall: xterm on vt consoles, ask on serial.
@@ -42,6 +50,10 @@ fi
 export TERM
 
 resizewin -z 2>/dev/null
+
+# syslogd writes *.err to /dev/console — that noise lands mid-frame on
+# the TUI. Live media doesn't need it; dmesg keeps everything anyway.
+service syslogd stop >/dev/null 2>&1
 
 # Network once per boot: DHCP on every plausible NIC. The dist sets and the
 # vellum payload are fetched over the network during install.
