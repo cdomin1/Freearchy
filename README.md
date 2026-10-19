@@ -117,7 +117,7 @@ install target:
 
 | File | Use |
 |---|---|
-| `vellum-15.1-amd64-usb-installer.img.xz` | PC / ThinkPad / Intel Mac — `dd` to USB |
+| `vellum-15.1-amd64-usb-installer.img.xz` | x86 PC — `dd` to USB |
 | `vellum-15.1-amd64-vm-installer.iso.xz` | x86 VMs (VirtualBox/VMware/QEMU/bhyve) — attach as CD |
 | `vellum-15.1-aarch64-usb-installer.img.xz` | bare-metal arm64 |
 | `vellum-15.1-aarch64-vm-installer.iso.xz` | **Parallels/UTM on Apple Silicon** — attach as CD |
