@@ -418,9 +418,12 @@ fn dist_dir(log: &dyn Fn(&str)) -> Result<String> {
     let rel = util::capture("uname", &["-r"]).context("uname -r")?;
     // patch levels (15.1-RELEASE-p2) share the release's dist sets
     let rel = rel.trim().split("-p").next().unwrap_or_default().to_string();
-    let arch = util::capture("uname", &["-m"]).context("uname -m")?;
+    // uname -m is the family dir (amd64, arm64); uname -p is the arch dir
+    // (amd64, aarch64). aarch64 machines report -m as "arm64".
+    let family = util::capture("uname", &["-m"]).context("uname -m")?;
+    let family = family.trim();
+    let arch = util::capture("uname", &["-p"]).context("uname -p")?;
     let arch = arch.trim();
-    let family = if arch == "aarch64" { "arm64" } else { arch };
     // Stage on the target disk — /tmp on install media is RAM-backed and
     // too small for kernel.txz+base.txz (~1GB).
     let dir = format!("{MNT}/freebsd-dist");
@@ -441,7 +444,8 @@ fn boot_loader(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
 
     // Removable-media path — always bootable without NVRAM entries.
     let boot_name = match util::capture("uname", &["-m"]).as_deref().map(str::trim) {
-        Some("aarch64") => "BOOTAA64.EFI",
+        // uname -m reports "arm64" on aarch64 machines
+        Some("arm64") | Some("aarch64") => "BOOTAA64.EFI",
         _ => "BOOTX64.EFI",
     };
     for dst_dir in ["EFI/BOOT", "EFI/freebsd"] {

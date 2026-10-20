@@ -33,8 +33,9 @@ inject_vellum() {
     if [ -n "$GUM_ARCH" ]; then
         GUM_URL="https://github.com/charmbracelet/gum/releases/download/v${GUM_VER}/gum_${GUM_VER}_Freebsd_${GUM_ARCH}.tar.gz"
         GTMP=$(mktemp -d)
-        if fetch -qo "$GTMP/gum.tar.gz" "$GUM_URL" && tar -xzf "$GTMP/gum.tar.gz" -C "$GTMP" gum 2>/dev/null; then
-            cp "$GTMP/gum" "$ROOT/usr/local/bin/gum"
+        # tarball nests the binary: gum_<ver>_Freebsd_<arch>/gum
+        if fetch -qo "$GTMP/gum.tar.gz" "$GUM_URL" && tar -xzf "$GTMP/gum.tar.gz" -C "$GTMP" 2>/dev/null; then
+            cp "$GTMP"/*/gum "$ROOT/usr/local/bin/gum"
             chmod 755 "$ROOT/usr/local/bin/gum"
             echo "==> Embedded gum $GUM_VER ($GUM_ARCH)"
         else
