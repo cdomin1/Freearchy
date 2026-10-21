@@ -32,7 +32,7 @@ jobs:
             set -e
             pkg install -y git
             VELLUM_REPO=$HOME/vellum
-            git clone --depth 1 https://github.com/cdomin1/Vellum-BSD.git "$VELLUM_REPO"
+            git clone --depth 1 "https://github.com/${{ github.repository }}.git" "$VELLUM_REPO"
             VELLUM_SHOT_THEME='${{ github.event.inputs.theme || 'tokyo-night' }}' \
             VELLUM_SHOT_ALT='${{ github.event.inputs.alt || 'gruvbox' }}' \
                 sh "$VELLUM_REPO/scripts/screenshot.sh"

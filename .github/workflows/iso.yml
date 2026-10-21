@@ -42,13 +42,13 @@ jobs:
           # rsync sync is flaky on this action and was killing runs
           sync: "no"
           copyback: false
-          envs: GH_TOKEN GITHUB_REF_NAME GITHUB_REF_TYPE ARCH
+          envs: GH_TOKEN GITHUB_REF_NAME GITHUB_REF_TYPE GITHUB_REPOSITORY ARCH
           run: |
             set -ex
             pkg install -y rust git-lite curl
             git clone --depth 1 ${GITHUB_REF_TYPE:+--branch "${GITHUB_REF_NAME}"} \
-                https://github.com/cdomin1/Vellum-BSD.git ~/vellum || \
-                git clone --depth 1 https://github.com/cdomin1/Vellum-BSD.git ~/vellum
+                "https://github.com/${GITHUB_REPOSITORY}.git" ~/vellum || \
+                git clone --depth 1 "https://github.com/${GITHUB_REPOSITORY}.git" ~/vellum
             cd ~/vellum
             cargo build --release -p vellum
             strip target/release/vellum
@@ -62,7 +62,7 @@ jobs:
             xz -T0 "vellum-15.1-${ARCH}-vm-installer.iso"
             # Tag builds: create-or-reuse the release, upload the assets.
             if [ "$GITHUB_REF_TYPE" = "tag" ]; then
-                REPO=cdomin1/Vellum-BSD
+                REPO="$GITHUB_REPOSITORY"
                 TAG="$GITHUB_REF_NAME"
                 API="https://api.github.com/repos/$REPO"
                 RID=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" \
