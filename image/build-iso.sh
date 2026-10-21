@@ -13,6 +13,7 @@ set -eu
 RELEASE="${1:-15.1}"
 ARCH="${ARCH:-amd64}"
 VELLUM_BIN="${VELLUM_BIN:-}"
+WM_BIN="${WM_BIN:-}"
 OUT="${OUT:-vellum-${RELEASE}-${ARCH}-vm-installer.iso}"
 
 case "$ARCH" in
@@ -48,7 +49,7 @@ umount "$WORK/mnt"
 mdconfig -d -u "$MD"
 MD=""
 
-inject_vellum "$WORK/tree"
+inject_live "$WORK/tree"
 
 # The kernel mounts the ISO root BY VOLUME LABEL via etc/fstab
 # (/dev/iso9660/<label>) — mkisoimages.sh does the same rewrite. If the

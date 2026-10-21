@@ -1,0 +1,40 @@
+#!/bin/sh
+# PROVIDE: vellum_live
+# REQUIRE: FILESYSTEMS
+# BEFORE: LOGIN
+# KEYWORD: nojail
+
+# Live-user home on a tmpfs — the ISO root is read-only, and X, shells and
+# apps all need a writable $HOME. Seeds from /usr/local/share/vellum-skel
+# (baked into the image by inject.sh) before the ttyv0 autologin fires.
+
+. /etc/rc.subr
+
+name="vellum_live"
+desc="Seed the live-user home on tmpfs"
+start_cmd="vellum_live_start"
+stop_cmd="vellum_live_stop"
+
+SKEL=/usr/local/share/vellum-skel
+HOME_DIR=/usr/home/vellum
+
+vellum_live_start()
+{
+    kldload -n tmpfs 2>/dev/null
+    if ! df "$HOME_DIR" 2>/dev/null | grep -q tmpfs; then
+        mount -t tmpfs tmpfs "$HOME_DIR" || {
+            echo "vellum_live: tmpfs mount failed"; return 1;
+        }
+    fi
+    cp -R "$SKEL"/. "$HOME_DIR"/ 2>/dev/null
+    chown -R vellum:vellum "$HOME_DIR" 2>/dev/null
+    chmod 755 "$HOME_DIR"
+}
+
+vellum_live_stop()
+{
+    umount "$HOME_DIR" 2>/dev/null || true
+}
+
+run_rc_command "$1"
+

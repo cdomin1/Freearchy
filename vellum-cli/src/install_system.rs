@@ -947,8 +947,11 @@ mod tests {
     }
 
     fn conf(body: &str) -> String {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        body.hash(&mut h);
         let p = std::env::temp_dir()
-            .join(format!("vellum-conf-{}-{}", std::process::id(), body.len()));
+            .join(format!("vellum-conf-{}-{:x}", std::process::id(), h.finish()));
         fs::write(&p, body).unwrap();
         p.to_string_lossy().into_owned()
     }

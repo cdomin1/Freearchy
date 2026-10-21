@@ -42,6 +42,12 @@ Shell scripts: `sh -n <file>` (no shellcheck installed).
   commands go through `install_system::sh` (captured output), never
   `util::run` (prints). gum is embedded statically by `image/inject.sh`;
   the wizard degrades to POSIX prompts if it's missing.
+- The ISO is a live desktop (`inject_live` in `image/inject.sh`): package
+  manifests installed via `pkg -r`, ttyv0 autologin → `startx` → vellum-wm,
+  and the wizard autostarts in an Alacritty window. `image/vellum-live`
+  seeds the live user's tmpfs home from `/usr/local/share/vellum-skel`;
+  `WM_BIN` passes a prebuilt vellum-wm to `image/build-iso.sh`. The
+  memstick keeps the console installer (`inject_vellum`).
 - First boot only runs because the installer writes `/firstboot`; the rc
   script configures `vellum_firstboot_user`'s home via `SUDO_USER`.
 - Boot splash: regenerate `image/splash.png` with `scripts/gen-splash.py`

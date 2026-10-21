@@ -127,3 +127,175 @@ inject_vellum() {
     grep -q rc_startmsgs "$ROOT/etc/rc.conf" \
         || echo 'rc_startmsgs="NO"' >> "$ROOT/etc/rc.conf"
 }
+
+# ---------------------------------------------------------------------------
+# inject_live <root> — live-desktop variant (used for the VM ISO).
+# Everything inject_vellum does (payload, gum, dist sets, quiet boot) plus a
+# bootable desktop: package manifests installed into the image, a live user,
+# ttyv0 autologin → startx → vellum-wm, and the installer wizard running in an
+# Alacritty window (gum behaves perfectly under a real terminal — none of the
+# bare-vt weirdness).
+#   WM_BIN — optional prebuilt vellum-wm binary
+inject_live() {
+    ROOT="$1"
+    inject_vellum "$ROOT" || return 1
+    live_packages "$ROOT"
+    live_user "$ROOT"
+    live_boot "$ROOT"
+    if [ -n "$WM_BIN" ] && [ -f "$WM_BIN" ]; then
+        echo "==> Embedding vellum-wm binary"
+        cp "$WM_BIN" "$ROOT/usr/local/bin/vellum-wm"
+        chmod 755 "$ROOT/usr/local/bin/vellum-wm"
+    else
+        echo "!! WM_BIN unset — live desktop will have no window manager" >&2
+    fi
+}
+
+# Package manifests → pkg -r into the image root (chroot-less install).
+# Same parse as install.rs: '#' comments, trailing '?' = optional.
+live_packages() {
+    ROOT="$1"
+    echo "==> Installing desktop packages into live image"
+    # pkg -r chroots into ROOT for scriptlets — needs DNS + dev nodes.
+    [ -f /etc/resolv.conf ] && cp /etc/resolv.conf "$ROOT/etc/resolv.conf"
+    mkdir -p "$ROOT/dev"
+    mount -t devfs devfs "$ROOT/dev" 2>/dev/null
+
+    REQ=""; OPT=""
+    for m in base xorg shell desktop; do
+        MF="$REPO/packages/$m.txt"
+        [ -f "$MF" ] || continue
+        while IFS= read -r _line; do
+            _p=$(printf '%s' "$_line" | sed 's/#.*//' | tr -d '[:space:]')
+            [ -z "$_p" ] && continue
+            case "$_p" in
+                *\?) OPT="$OPT ${_p%\?}" ;;
+                *)   REQ="$REQ $_p" ;;
+            esac
+        done < "$MF"
+    done
+
+    # shellcheck disable=SC2086
+    env ASSUME_ALWAYS_YES=yes pkg -r "$ROOT" update 2>/dev/null
+    env ASSUME_ALWAYS_YES=yes pkg -r "$ROOT" install -y $REQ \
+        || echo "!! some required packages failed to install" >&2
+    for _p in $OPT; do
+        env ASSUME_ALWAYS_YES=yes pkg -r "$ROOT" install -y "$_p" >/dev/null 2>&1 \
+            || echo "!! optional package $_p unavailable — skipping" >&2
+    done
+    umount "$ROOT/dev" 2>/dev/null
+    rm -f "$ROOT/etc/resolv.conf"
+}
+
+# Live user 'vellum' (uid 1001) + passwd db regen on the image.
+live_user() {
+    ROOT="$1"
+    echo "==> Creating live user 'vellum'"
+    grep -q '^vellum:' "$ROOT/etc/master.passwd" 2>/dev/null || \
+        echo 'vellum:*:1001:1001::0:0:Vellum Live:/usr/home/vellum:/bin/sh' \
+            >> "$ROOT/etc/master.passwd"
+    pwd_mkdb -d "$ROOT/etc" "$ROOT/etc/master.passwd"
+    grep -q '^vellum:' "$ROOT/etc/group" 2>/dev/null \
+        || echo 'vellum:*:1001:' >> "$ROOT/etc/group"
+    # video group for GPU device access when KMS drivers exist
+    sed -i '' 's|^video:\*:\([0-9]*\):$|video:*:\1:vellum|' "$ROOT/etc/group" 2>/dev/null
+    mkdir -p "$ROOT/usr/home/vellum"
+}
+
+# ttyv0 autologin → live user's .profile → startx. skel lands on tmpfs at boot
+# (image/vellum-live rc.d). doas nopass so the desktop can run the installer.
+live_boot() {
+    ROOT="$1"
+    echo "==> Live boot: autologin ttyv0 → startx → desktop"
+
+    # autologin getty entry + ttyv0 pointing at it. tc before al so Pc's
+    # settings merge first and our al wins.
+    grep -q 'vellum-auto' "$ROOT/etc/gettytab" 2>/dev/null || \
+        printf 'vellum-auto:al=vellum:tc=Pc:\n' >> "$ROOT/etc/gettytab"
+    sed -i '' 's|^ttyv0.*|ttyv0\t"/usr/libexec/getty vellum-auto"\txterm\tonifexists secure|' \
+        "$ROOT/etc/ttys"
+
+    # nopass doas for the live user — installer + power ops from the desktop
+    mkdir -p "$ROOT/usr/local/etc"
+    echo 'permit nopass vellum as root' > "$ROOT/usr/local/etc/doas.conf"
+
+    # dbus for notifyd/GTK; seatd not needed (X has direct device access)
+    grep -q dbus_enable "$ROOT/etc/rc.conf" 2>/dev/null \
+        || echo 'dbus_enable="YES"' >> "$ROOT/etc/rc.conf"
+    echo 'vellum_live_enable="YES"' >> "$ROOT/etc/rc.conf"
+
+    # rc.d script: tmpfs home + skel seeding (ISO9660 root is read-only)
+    cp "$REPO/image/vellum-live" "$ROOT/etc/rc.d/vellum_live"
+    chmod 555 "$ROOT/etc/rc.d/vellum_live"
+
+    # skel — seeded into the tmpfs home each boot
+    SKEL="$ROOT/usr/local/share/vellum-skel"
+    mkdir -p "$SKEL/.config/vellum" "$SKEL/.local/share/applications"
+    # .profile: ttyv0 → startx once (fall back to shell if X fails twice)
+    cat > "$SKEL/.profile" <<'EOF'
+export PATH="$HOME/bin:/usr/local/bin:/usr/local/sbin:$PATH"
+if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/ttyv0" ] && [ ! -f "$HOME/.vellum-nox" ]; then
+    startx || touch "$HOME/.vellum-nox"
+    exit
+fi
+EOF
+    # .xinitrc: canonical session + the installer window autostart
+    awk '/^exec vellum-wm/ {
+        print "( sleep 3 && alacritty -e doas /usr/local/bin/vellum-setup ) &"
+        print ""
+    } { print }' "$REPO/config/x11/xinitrc" > "$SKEL/.xinitrc"
+    # config symlinks into the read-only payload on the media
+    ln -sf /usr/local/vellum/config/x11           "$SKEL/.config/vellum/x11"
+    ln -sf /usr/local/vellum/config/x11/rofi      "$SKEL/.config/rofi"
+    ln -sf /usr/local/vellum/config/x11/alacritty "$SKEL/.config/alacritty"
+    ln -sf /usr/local/vellum/config/x11/polybar   "$SKEL/.config/polybar"
+    ln -sf /usr/local/vellum/config/x11/gtk-3.0   "$SKEL/.config/gtk-3.0"
+    ln -sf /usr/local/vellum/config/x11/gtkrc-2.0 "$SKEL/.gtkrc-2.0"
+    ln -sf /usr/local/vellum/config/x11/applications/vellum-menu.desktop \
+        "$SKEL/.local/share/applications/vellum-menu.desktop"
+
+    # relaunchable installer entry (rofi drun / any desktop menu)
+    cat > "$SKEL/.local/share/applications/vellum-install.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Install VELLUM
+Comment=Install VELLUM to this disk
+Exec=alacritty -e doas /usr/local/bin/vellum-setup
+Icon=drive-harddisk
+Terminal=false
+Categories=System;Settings;
+EOF
+
+    # rc.local: unattended config still wins — a vellum-install.conf drive
+    # runs the console engine before X starts; otherwise the desktop boots.
+    cat > "$ROOT/etc/rc.local" <<'EOF'
+#!/bin/sh
+# Vellum live ISO — unattended install takes precedence over the desktop.
+mkdir -p /tmp/bsdinstall_etc
+
+# DHCP on plausible NICs — desktop + installer both want it. -b backgrounds.
+for i in $(ifconfig -l); do
+    case "$i" in lo*|ipfw*|pflog*|pfsync*|wlan*) continue ;; esac
+    ifconfig "$i" up 2>/dev/null
+    dhclient -b "$i" >/dev/null 2>&1
+done
+
+for dev in $(sysctl -n kern.disks 2>/dev/null); do
+    for part in "/dev/${dev}"*; do
+        [ "$part" = "/dev/${dev}" ] && continue
+        [ -c "$part" ] || continue
+        fs=$(fstyp "$part" 2>/dev/null) || continue
+        case "$fs" in ufs|msdosfs|cd9660|ext2fs|ntfs) ;; *) continue ;; esac
+        mkdir -p /tmp/vmnt
+        mount -r -t "$fs" "$part" /tmp/vmnt 2>/dev/null || continue
+        if [ -f /tmp/vmnt/vellum-install.conf ]; then
+            umount /tmp/vmnt
+            exec /usr/local/bin/vellum-install
+        fi
+        umount /tmp/vmnt 2>/dev/null
+    done
+done
+# no config → the ttyv0 autologin takes it from here (desktop + installer window)
+EOF
+    chmod 555 "$ROOT/etc/rc.local"
+}

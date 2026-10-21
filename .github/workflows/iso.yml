@@ -50,10 +50,11 @@ jobs:
                 "https://github.com/${GITHUB_REPOSITORY}.git" ~/vellum || \
                 git clone --depth 1 "https://github.com/${GITHUB_REPOSITORY}.git" ~/vellum
             cd ~/vellum
-            cargo build --release -p vellum
-            strip target/release/vellum
+            cargo build --release -p vellum -p vellum-wm
+            strip target/release/vellum target/release/vellum-wm
             VELLUM_BIN="$PWD/target/release/vellum" sh image/build-image.sh 15.1
-            VELLUM_BIN="$PWD/target/release/vellum" sh image/build-iso.sh 15.1
+            VELLUM_BIN="$PWD/target/release/vellum" WM_BIN="$PWD/target/release/vellum-wm" \
+                sh image/build-iso.sh 15.1
             # Target-based names: usb-installer = dd to a stick for bare
             # metal; vm-installer = real bootable ISO for Parallels/UTM/VBox.
             IMG=$(ls FreeBSD-15.1-RELEASE-*-memstick.img | head -1)
