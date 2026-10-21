@@ -27,7 +27,7 @@ Shell scripts: `sh -n <file>` (no shellcheck installed).
   official memstick, uploads `vellum-15.1-{amd64,aarch64}-memstick.img.xz`
   to the release (stale assets deleted first, so retagging works).
 - `screenshots.yml` — Xvfb session captures as artifacts.
-- `pages.yml` — deploys `site/` to https://cdomin1.github.io/vellum/.
+- `pages.yml` — deploys `site/` to https://cdomin1.github.io/Vellum-BSD/.
 
 ## Conventions / gotchas
 

@@ -30,7 +30,7 @@ mkdir -p /opt/vellum-demo
 cd /opt/vellum-demo
 if [ ! -f "$ISO" ]; then
     curl -fL -o "$ISO.xz" \
-        "https://github.com/cdomin1/vellum/releases/download/${RELEASE_TAG}/${ISO}.xz"
+        "https://github.com/cdomin1/Vellum-BSD/releases/download/${RELEASE_TAG}/${ISO}.xz"
     xz -d "$ISO.xz"
 fi
 

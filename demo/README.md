@@ -14,7 +14,7 @@ browser ──WSS──> Caddy :443 ──> websockify :6080 ──VNC──> qe
 ## Provision a Debian/Ubuntu x86 VPS
 
 ```sh
-curl -O https://raw.githubusercontent.com/cdomin1/vellum/main/demo/setup.sh
+curl -O https://raw.githubusercontent.com/cdomin1/Vellum-BSD/main/demo/setup.sh
 HOSTNAME=<vps-ip>.sslip.io sh setup.sh    # or your own domain
 ```
 

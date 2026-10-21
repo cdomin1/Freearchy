@@ -37,7 +37,7 @@ fn pool() -> String {
     std::env::var("VELLUM_POOL").unwrap_or_else(|_| "zroot".into())
 }
 const REPO_TARBALL: &str =
-    "https://github.com/cdomin1/vellum/archive/refs/heads/main.tar.gz";
+    "https://github.com/cdomin1/Vellum-BSD/archive/refs/heads/main.tar.gz";
 
 /// Fully-specified install request — produced by the TUI wizard, CLI flags,
 /// or the web installer. `execute` runs the same pipeline for all of them.

@@ -112,7 +112,7 @@ rough edges; it's a source build, not a bundled pkg.
 ## Quick start — installer image (pre-alpha)
 
 Assets on the latest
-[release](https://github.com/cdomin1/vellum/releases) are named by
+[release](https://github.com/cdomin1/Vellum-BSD/releases) are named by
 install target:
 
 | File | Use |
@@ -139,7 +139,7 @@ Fresh FreeBSD has no sudo/doas, so run it as root from your own login:
 
 ```sh
 su -
-fetch https://raw.githubusercontent.com/cdomin1/vellum/main/boot.sh -o - | sh
+fetch https://raw.githubusercontent.com/cdomin1/Vellum-BSD/main/boot.sh -o - | sh
 ```
 
 `boot.sh` installs git + rust, clones this repo to your

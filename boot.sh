@@ -3,7 +3,7 @@
 # installs have no sudo/doas yet):
 #
 #   su -
-#   fetch https://raw.githubusercontent.com/cdomin1/vellum/main/boot.sh -o - | sh
+#   fetch https://raw.githubusercontent.com/cdomin1/Vellum-BSD/main/boot.sh -o - | sh
 #
 # The desktop is configured for the user who logged in and ran `su`
 # (override with VELLUM_USER=name). POSIX sh only — bash is not in base.
@@ -19,7 +19,7 @@ fi
 TARGET_HOME=$(pw usershow -n "$TARGET_USER" | cut -d: -f9)
 
 VELLUM_HOME="$TARGET_HOME/.local/share/vellum"
-REPO_URL="${VELLUM_REPO:-https://github.com/cdomin1/vellum.git}"
+REPO_URL="${VELLUM_REPO:-https://github.com/cdomin1/Vellum-BSD.git}"
 
 echo "==> Installing bootstrap tools (git, rust)"
 ASSUME_ALWAYS_YES=yes pkg bootstrap -f >/dev/null 2>&1 || true

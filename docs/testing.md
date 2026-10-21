@@ -51,7 +51,7 @@ Stock `bsdinstall`, with these choices:
 ```sh
 # inside the guest (or over ssh)
 su -    # boot.sh runs as root, configures the user who ran su
-fetch https://raw.githubusercontent.com/cdomin1/vellum/main/boot.sh -o - | sh
+fetch https://raw.githubusercontent.com/cdomin1/Vellum-BSD/main/boot.sh -o - | sh
 ```
 
 Or push the repo from a Mac checkout (COPYFILE_DISABLE avoids macOS
