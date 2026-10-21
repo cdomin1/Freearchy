@@ -157,7 +157,12 @@ live_packages() {
     ROOT="$1"
     echo "==> Installing desktop packages into live image"
     # pkg -r chroots into ROOT for scriptlets — needs DNS + dev nodes.
-    [ -f /etc/resolv.conf ] && cp /etc/resolv.conf "$ROOT/etc/resolv.conf"
+    # Stock media symlinks resolv.conf into /tmp/bsdinstall_etc (writable
+    # runtime area) — unlink before copying or cp writes through the link.
+    if [ -f /etc/resolv.conf ]; then
+        rm -f "$ROOT/etc/resolv.conf"
+        cp /etc/resolv.conf "$ROOT/etc/resolv.conf"
+    fi
     mkdir -p "$ROOT/dev"
     mount -t devfs devfs "$ROOT/dev" 2>/dev/null
 
@@ -185,6 +190,9 @@ live_packages() {
     done
     umount "$ROOT/dev" 2>/dev/null
     rm -f "$ROOT/etc/resolv.conf"
+    # restore the stock symlink — live runtime resolv.conf lands in
+    # /tmp/bsdinstall_etc via dhclient/resolvconf (created in rc.local)
+    ln -sf /tmp/bsdinstall_etc/resolv.conf "$ROOT/etc/resolv.conf"
 }
 
 # Live user 'vellum' (uid 1001) + passwd db regen on the image.
