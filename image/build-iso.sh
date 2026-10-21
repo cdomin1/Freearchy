@@ -90,5 +90,38 @@ fi
 makefs -t cd9660 -o rockridge -o label="$LABEL" \
     $BOOT_ARGS "$OUT" "$WORK/tree"
 
+# Hybrid boot (upstream mkisoimages.sh does this too): without a GPT in the
+# ISO's system area, UEFI finds BOOT*.EFI via the El Torito catalog but the
+# loader can't locate the ISO9660 volume — "Failed to find bootable
+# partition / cannot open /boot/lua/loader.lua". Embed a GPT pointing at
+# the ESP's byte offset inside the ISO.
+# amd64's catalog has an i386 cdboot entry too — must take the efi one.
+# aarch64's single entry can report as "default".
+WANT=efi; [ "$ARCH" = "aarch64" ] && WANT="efi default"
+ESPPARAM=$(etdump --format shell "$OUT" | while read -r entry; do
+    eval "$entry"
+    for p in $WANT; do
+        [ "$et_platform" = "$p" ] && echo "$et_sectors $et_lba"
+    done
+done | tail -1)
+[ -n "$ESPPARAM" ] || { echo "!! no efi boot image in catalog" >&2; exit 1; }
+set -- $ESPPARAM
+ESPPARAM="-p efi::$(($1 * 512)):$(($2 * 2048))"
+
+IMGSIZE=$(stat -f %z "$OUT" 2>/dev/null || stat -c %s "$OUT")
+HYBRID=$(mktemp /tmp/hybrid.XXXXXX)
+if [ "$ARCH" = "amd64" ]; then
+    # PMBR + freebsd-boot (BIOS hybrid) + the ESP entry.
+    mkimg -s gpt --capacity "$IMGSIZE" \
+        -b "$WORK/tree/boot/pmbr" \
+        -p "freebsd-boot:=$WORK/tree/boot/isoboot" \
+        $ESPPARAM -o "$HYBRID"
+else
+    mkimg -s gpt --capacity "$IMGSIZE" $ESPPARAM -o "$HYBRID"
+fi
+# Drop it into the ISO's System Area (first 32KB).
+dd if="$HYBRID" of="$OUT" bs=32k count=1 conv=notrunc 2>/dev/null
+rm -f "$HYBRID"
+
 echo "==> Done: $OUT"
 echo "    attach as a CD/DVD in Parallels, UTM, VirtualBox, QEMU, bhyve"

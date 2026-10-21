@@ -17,6 +17,19 @@ use std::process::{Command, Stdio};
 use crate::util;
 
 const MNT: &str = "/mnt";
+/// Install log — the wizard points users here on failure.
+const LOG_PATH: &str = "/var/log/vellum-install.log";
+/// Tokyo Night vt(4) palette for the installed console — same indices the
+/// live media's loader.conf gets from inject.sh.
+const VT_PALETTE: &str = "# vellum console palette\n\
+    kern.vt.color.0.rgb=\"26,27,38\"\nkern.vt.color.1.rgb=\"247,118,142\"\n\
+    kern.vt.color.2.rgb=\"158,206,106\"\nkern.vt.color.3.rgb=\"224,175,104\"\n\
+    kern.vt.color.4.rgb=\"122,162,247\"\nkern.vt.color.5.rgb=\"187,154,247\"\n\
+    kern.vt.color.6.rgb=\"125,207,255\"\nkern.vt.color.7.rgb=\"169,177,214\"\n\
+    kern.vt.color.8.rgb=\"65,72,104\"\nkern.vt.color.9.rgb=\"255,122,147\"\n\
+    kern.vt.color.10.rgb=\"159,224,68\"\nkern.vt.color.11.rgb=\"250,186,74\"\n\
+    kern.vt.color.12.rgb=\"141,176,255\"\nkern.vt.color.13.rgb=\"199,169,255\"\n\
+    kern.vt.color.14.rgb=\"164,218,255\"\nkern.vt.color.15.rgb=\"192,202,245\"\n";
 
 /// zroot is the live-ISO default; VELLUM_POOL overrides it for tests and
 //  hosts that already import a pool named zroot.
@@ -50,22 +63,24 @@ impl InstallSpec {
             text.lines()
                 .filter_map(|l| l.split_once('='))
                 .find(|(key, _)| key.trim() == k)
-                .map(|(_, v)| v.trim().to_string())
+                .map(|(_, v)| v.trim_end_matches(['\r', '\n']).to_string())
                 .filter(|v| !v.is_empty())
         };
-        let erase = get("erase")
+        let get_t = |k: &str| get(k).map(|v| v.trim().to_string());
+        let erase = get_t("erase")
             .map(|v| matches!(v.as_str(), "y" | "yes" | "1" | "true"))
             .unwrap_or(false);
         if !erase {
             bail!("{path}: erase=yes required — the config is the destructive confirmation");
         }
         Ok(InstallSpec {
-            disk: get("disk").context("config missing 'disk'")?,
-            hostname: get("hostname").unwrap_or_else(|| "vellum".into()),
-            username: get("username").context("config missing 'username'")?,
-            fullname: get("fullname"),
-            email: get("email"),
-            keymap: get("keymap").unwrap_or_else(|| "us".into()),
+            disk: get_t("disk").context("config missing 'disk'")?,
+            hostname: get_t("hostname").unwrap_or_else(|| "vellum".into()),
+            username: get_t("username").context("config missing 'username'")?,
+            fullname: get_t("fullname"),
+            email: get_t("email"),
+            keymap: get_t("keymap").unwrap_or_else(|| "us".into()),
+            // Untrimmed — a space is a valid password character.
             password: get("password"),
         })
     }
@@ -86,7 +101,11 @@ pub fn run(
     // is the destructive confirmation; no further prompts.
     if let Some(path) = config {
         let spec = InstallSpec::from_config(&path)?;
-        return execute(&spec, &|m| println!("{m}"));
+        // Console path: progress bars + log file are on.
+        if std::env::var("VELLUM_PROGRESS").is_err() {
+            std::env::set_var("VELLUM_PROGRESS", "1");
+        }
+        return execute(&spec, &|_| {});
     }
 
     if tui {
@@ -144,17 +163,90 @@ pub fn run(
 /// them, the web installer buffers them for the progress pane.
 pub fn execute(spec: &InstallSpec, log: &dyn Fn(&str)) -> Result<()> {
     validate(spec)?;
+    // Progress UI: step lines to stdout, bars/fetch to the tty, plus a copy
+    // of everything in the install log. Plain call sites just get the lines.
+    let n = std::cell::Cell::new(0usize);
+    const STEPS: usize = 7;
+    let log = |m: &str| {
+        let is_step = !m.starts_with(' ');
+        let line = if is_step {
+            n.set(n.get() + 1);
+            format!("[{}/{STEPS}] {m}", n.get())
+        } else {
+            m.to_string()
+        };
+        println!("{line}");
+        log_line(&line);
+        log(m);
+    };
     let dev = format!("/dev/{}", spec.disk);
-    partition(&dev, log)?;
-    let datasets = zfs_layout(&dev, log)?;
-    extract_base(log)?;
-    boot_loader(&dev, log)?;
-    system_files(spec)?;
-    create_user(spec, log)?;
-    install_vellum(log)?;
-    datasets.teardown()?;
-    log("Install complete. Remove the media and reboot.");
+    let r = (|| -> Result<()> {
+        cleanup_target(); // drop leftovers from a killed earlier attempt
+        partition(&dev, &log)?;
+        let datasets = zfs_layout(&dev, &log)?;
+        extract_base(&log)?;
+        boot_loader(&dev, &log)?;
+        log("Configuring system");
+        system_files(spec)?;
+        create_user(spec, &log)?;
+        install_vellum(&log)?;
+        datasets.teardown()?;
+        Ok(())
+    })();
+    if r.is_err() {
+        cleanup_target(); // leave the disk retry-able, mounts dropped
+    }
+    r?;
+    println!("Install complete. Remove the media and reboot.");
+    log_line("Install complete.");
     Ok(())
+}
+
+/// VELLUM_PROGRESS=1 → fetch keeps its tty progress bar and tar shows a
+/// percentage. Off under --tui (alt-screen would smear) and --web.
+fn progress_enabled() -> bool {
+    std::env::var("VELLUM_PROGRESS").is_ok_and(|v| v != "0")
+}
+
+/// One line per call into the install log (open-append per call — cheap
+/// enough, keeps the signature a plain Fn).
+fn log_line(m: &str) {
+    if let Ok(mut f) = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(LOG_PATH)
+    {
+        let _ = writeln!(f, "{m}");
+    }
+}
+
+/// Everything we mounted under {MNT} plus an imported target pool —
+/// dropped so a retry starts clean. Best-effort, never fatal.
+fn cleanup_target() {
+    let mp: Vec<String> = util::capture("mount", &["-p"])
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|l| {
+            let p = l.split_whitespace().nth(1)?;
+            (p.starts_with(&format!("{MNT}/")) || p == MNT).then(|| p.to_string())
+        })
+        .collect();
+    // deepest first so nested mounts release cleanly
+    let mut mp = mp;
+    mp.sort_by_key(|b| std::cmp::Reverse(b.len()));
+    for p in mp {
+        let _ = sh("umount", &["-f", &p]);
+    }
+    // Our pool is the one created under altroot {MNT} — leave foreign
+    // zroots (another disk, the user's own) strictly alone.
+    let p = pool();
+    if pool_exists(&p)
+        && util::capture("zpool", &["get", "-H", "-o", "value", "altroot", &p])
+            .map(|v| v.trim() == MNT)
+            .unwrap_or(false)
+    {
+        let _ = sh("zpool", &["export", "-f", &p]);
+    }
 }
 
 pub(crate) fn valid_username(u: &str) -> bool {
@@ -258,17 +350,29 @@ pub(crate) fn disks() -> Result<Vec<(String, String)>> {
                 && Some(*d) != root.as_deref()
                 && Some(*d) != media.as_deref()
         })
-        .map(|d| (d.to_string(), format!("{d} {}", disk_size(d))))
+        .map(|d| (d.to_string(), disk_desc(d)))
         .collect())
 }
 
-fn disk_size(disk: &str) -> String {
+/// "VirtIO Disk, 20 GiB" — model from geom, size from diskinfo.
+fn disk_desc(disk: &str) -> String {
+    let descr = util::capture("geom", &["disk", "list", disk])
+        .and_then(|s| {
+            s.lines()
+                .find_map(|l| l.trim().strip_prefix("descr:").map(str::trim).map(String::from))
+        })
+        .unwrap_or_default();
     // `diskinfo nda0` → fields: name sectorsize mediasize ...
-    util::capture("diskinfo", &[disk])
+    let size = util::capture("diskinfo", &[disk])
         .and_then(|l| l.split_whitespace().nth(2).map(String::from))
         .and_then(|b| b.parse::<u64>().ok())
-        .map(|b| format!("({} GiB)", b / (1 << 30)))
-        .unwrap_or_default()
+        .map(|b| format!("{} GiB", b / (1 << 30)))
+        .unwrap_or_default();
+    [descr, size]
+        .into_iter()
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// Base disk name backing / — so we never offer the media we booted from.
@@ -316,6 +420,11 @@ fn partition(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
     sh("gpart", &["create", "-s", "gpt", dev])?;
     sh("gpart", &["add", "-a", "4k", "-t", "efi", "-s", "260m", "-l", "efiboot", dev])?;
     sh("gpart", &["add", "-a", "4k", "-t", "freebsd-zfs", "-l", "zroot", dev])?;
+    // amd64 only: BIOS-boot partition so legacy boot also works (GPT index
+    // lands after p2 — legal, bsdinstall's own layout is similar).
+    if is_amd64() {
+        sh("gpart", &["add", "-a", "4k", "-t", "freebsd-boot", "-s", "512k", "-l", "gptboot", dev])?;
+    }
     sh("newfs_msdos", &["-F", "32", "-c", "1", "-L", "EFISYS", &format!("{dev}p1")])
 }
 
@@ -394,12 +503,52 @@ fn extract_base(log: &dyn Fn(&str)) -> Result<()> {
         if !Path::new(&path).exists() {
             bail!("missing dist set: {path}");
         }
-        sh("tar", &["-xf", &path, "-C", MNT])?;
+        extract_set(&path)?;
     }
     if distdir.starts_with(MNT) {
         let _ = fs::remove_dir_all(&distdir); // staged download — ~1GB
     }
     Ok(())
+}
+
+/// tar x for one dist set; with progress on, stream through a byte counter
+/// so the console shows a live percentage (extraction is the longest step).
+fn extract_set(path: &str) -> Result<()> {
+    if !progress_enabled() {
+        return sh("tar", &["-xf", path, "-C", MNT]);
+    }
+    use std::io::Read;
+    let name = Path::new(path).file_name().unwrap_or_default().to_string_lossy().to_string();
+    let size = fs::metadata(path)?.len().max(1);
+    let mut reader = std::io::BufReader::new(fs::File::open(path)?);
+    let mut child = Command::new("tar")
+        .args(["-xf", "-", "-C", MNT])
+        .stdin(Stdio::piped())
+        .spawn()
+        .context("spawn tar")?;
+    let mut sin = child.stdin.take().context("tar stdin")?;
+    let mut buf = [0u8; 1 << 20];
+    let mut done = 0u64;
+    let pct = |d: u64| (d * 100 / size).min(100);
+    let mut last = 0u64;
+    loop {
+        let n = reader.read(&mut buf)?;
+        if n == 0 || sin.write_all(&buf[..n]).is_err() {
+            break;
+        }
+        done += n as u64;
+        if pct(done) != last {
+            last = pct(done);
+            eprint!("\r    extracting {name}  {last:>3}%");
+            let _ = std::io::stderr().flush();
+        }
+    }
+    drop(sin);
+    let st = child.wait()?;
+    eprintln!();
+    st.success()
+        .then_some(())
+        .with_context(|| format!("tar -xf {path} failed ({st})"))
 }
 
 fn dist_dir(log: &dyn Fn(&str)) -> Result<String> {
@@ -424,16 +573,55 @@ fn dist_dir(log: &dyn Fn(&str)) -> Result<String> {
     let family = family.trim();
     let arch = util::capture("uname", &["-p"]).context("uname -p")?;
     let arch = arch.trim();
+    let base = format!("https://download.freebsd.org/releases/{family}/{arch}/{rel}");
     // Stage on the target disk — /tmp on install media is RAM-backed and
     // too small for kernel.txz+base.txz (~1GB).
     let dir = format!("{MNT}/freebsd-dist");
     fs::create_dir_all(&dir)?;
+    let have_manifest = fetch_tty(&format!("{base}/MANIFEST"), &format!("{dir}/MANIFEST")).is_ok();
     for set in ["kernel.txz", "base.txz"] {
-        log(&format!("Downloading {set} ({rel}, {arch})"));
-        let url = format!("https://download.freebsd.org/releases/{family}/{arch}/{rel}/{set}");
-        sh("fetch", &["-o", &format!("{dir}/{set}"), &url])?;
+        log(&format!("  downloading {set} ({rel}, {arch})"));
+        fetch_tty(&format!("{base}/{set}"), &format!("{dir}/{set}"))
+            .with_context(|| format!("downloading {set}"))?;
+    }
+    // Verify against MANIFEST (sha256 in field 2) when we could get it.
+    if have_manifest {
+        let text = fs::read_to_string(format!("{dir}/MANIFEST")).unwrap_or_default();
+        for set in ["kernel.txz", "base.txz"] {
+            let Some(want) = text
+                .lines()
+                .find(|l| l.split_whitespace().next() == Some(set))
+                .and_then(|l| l.split_whitespace().nth(1))
+            else { continue };
+            let path = format!("{dir}/{set}");
+            if util::capture("sha256", &["-q", &path]).map(|s| s.trim() != want).unwrap_or(false) {
+                let _ = fs::remove_file(&path); // don't leave a bad set for the retry
+                bail!("{set}: sha256 mismatch vs MANIFEST (re-run to re-download)");
+            }
+        }
     }
     Ok(dir)
+}
+
+/// fetch(1) with its progress bar on the tty; captures stderr only when
+/// progress output is off (--tui / web front-ends).
+fn fetch_tty(url: &str, dest: &str) -> Result<()> {
+    if progress_enabled() {
+        let st = Command::new("fetch")
+            .args(["-o", dest, url])
+            .stdin(Stdio::null())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()
+            .with_context(|| "spawn fetch")?;
+        st.success().then_some(()).context("fetch failed")
+    } else {
+        sh("fetch", &["-o", dest, url])
+    }
+}
+
+fn is_amd64() -> bool {
+    util::capture("uname", &["-m"]).map(|m| m.trim() == "amd64").unwrap_or(true)
 }
 
 fn boot_loader(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
@@ -460,6 +648,18 @@ fn boot_loader(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
             .with_context(|| format!("copying loader to {}", target.display()))?;
     }
 
+    // amd64: write legacy boot code too (pmbr + gptzfsboot on p3) — needs
+    // the files we just extracted under {MNT}.
+    if is_amd64()
+        && Path::new(&format!("{MNT}/boot/gptzfsboot")).exists()
+        && Path::new(&format!("{MNT}/boot/pmbr")).exists()
+    {
+        let _ = sh("gpart", &[
+            "bootcode", "-b", &format!("{MNT}/boot/pmbr"),
+            "-p", &format!("{MNT}/boot/gptzfsboot"), "-i", "3", dev,
+        ]);
+    }
+
     // zpool.cache so the loader finds the pool pre-mount. altroot implies
     // cachefile=none, so point the pool at the target's cache explicitly
     // (what bsdinstall does).
@@ -472,12 +672,13 @@ fn boot_loader(dev: &str, log: &dyn Fn(&str)) -> Result<()> {
             "zfs_load=\"YES\"\nvfs.root.mountfrom=\"zfs:{}/ROOT/default\"\n\
              kern.geom.label.disk_ident.enable=\"0\"\nkern.geom.label.gptid.enable=\"0\"\n\
              # power: put driverless PCI devices into D3\n\
-             hw.pci.do_power_nodriver=\"3\"\n{}",
+             hw.pci.do_power_nodriver=\"3\"\n{}{}",
             pool(),
             crate::gpu::loader_conf_lines()
                 .iter()
                 .map(|l| format!("{l}\n"))
-                .collect::<String>()
+                .collect::<String>(),
+            VT_PALETTE
         ),
     )?;
 
@@ -668,13 +869,17 @@ fn install_vellum(log: &dyn Fn(&str)) -> Result<()> {
     let local = util::repo_root().unwrap_or_default();
 
     if local.join("boot.sh").exists() {
-        // Installer built from a checkout — copy it in.
+        // Installer built from a checkout / media with an embedded payload
+        // — copy it in.
         sh("cp", &["-R", &local.to_string_lossy(), &dst])?;
     } else {
-        sh("fetch", &["-q", "-o", "/tmp/vellum.tar.gz", REPO_TARBALL])?;
+        // Stage under the target's var/tmp — /tmp on live media is small.
+        let tgz = format!("{MNT}/var/tmp/vellum.tar.gz");
+        fetch_tty(REPO_TARBALL, &tgz).context("fetching vellum payload")?;
         fs::create_dir_all(&dst)?;
         // GitHub tarballs wrap everything in <repo>-<branch>/
-        sh("tar", &["-xzf", "/tmp/vellum.tar.gz", "-C", &dst, "--strip-components", "1"])?;
+        sh("tar", &["-xzf", &tgz, "-C", &dst, "--strip-components", "1"])?;
+        let _ = fs::remove_file(&tgz);
     }
 
     // The running installer binary is the CLI the new system needs — copy

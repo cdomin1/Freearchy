@@ -1,36 +1,30 @@
 #!/bin/sh
 # vellum-setup — Omarchy-style inline installer wizard.
 #
-# Prompts are inline (gum choose/input/password/confirm) — no alt-screen,
-# no raw-mode input, so console noise can't clobber the UI and stdin just
-# works. Collects answers → writes a KEY=VALUE config → hands it to the
-# Rust engine (vellum install-system --config) which owns all destructive
-# work. Output is tee'd to a log like Omarchy's installer.
+# Prompts are inline (gum choose/input/confirm) — no alt-screen, no raw
+# mode, so console noise can't clobber the UI and stdin just works.
+# Collects answers → writes a KEY=VALUE config → hands it to the Rust
+# engine (vellum install-system --config) which owns all destructive
+# work, prints [n/7] steps, and logs to /var/log/vellum-install.log.
 #
-# Unattended: if $VELLUM_CONFIG points at a file, or any mounted-readable
-# drive has /vellum-install.conf, the wizard is skipped entirely (the
+# Unattended: $VELLUM_CONFIG, /vellum-install.conf on an already-mounted
+# root, or the same file on any attached drive skips the wizard (the
 # config's erase=yes is the confirmation).
+#
+# gum notes: pinned to 0.17 (bubbletea v1 — 2.x emits kitty-keyboard
+# escapes vt(4) prints as literal "1u"). TERM=screen-16color stops gum's
+# termenv from sending OSC 11 + DSR colour queries — on vt the query eats
+# the user's first keystrokes while it waits for a reply. Colours must
+# therefore be ANSI indices (kern.vt.color.* loader tunables in inject.sh
+# make them render as the theme palette).
 
 export HOME=/root
 export TERM=${TERM:-xterm}
-PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-
-# --- console theming ---------------------------------------------------------
-# Tokyo Night — same palette as the site/branding. OSC palette writes are a
-# no-op where unsupported; gum picks colours up from its env vars regardless.
-ACCENT='#7aa2f7'; FG='#c0caf5'; BG='#1a1b26'; DIM='#565f89'; RED='#f7768e'; GREEN='#9ece6a'
-printf '\033]P01a1b26\033]P1f7768e\033]P29ece6a\033]P3e0af68\033]P47aa2f7\033]P5ad8ee6\033]P6449dab\033]P7a9b1d6' 2>/dev/null
-export GUM_CHOOSE_CURSOR_FOREGROUND="$ACCENT" GUM_CHOOSE_ITEM_FOREGROUND="$FG" \
-       GUM_CHOOSE_HEADER_FOREGROUND="$DIM" GUM_CHOOSE_SELECTED_FOREGROUND="$ACCENT" \
-       GUM_INPUT_PROMPT_FOREGROUND="$ACCENT" GUM_INPUT_CURSOR_FOREGROUND="$ACCENT" \
-       GUM_INPUT_PLACEHOLDER_FOREGROUND="$DIM" \
-       GUM_CONFIRM_PROMPT_FOREGROUND="$FG" GUM_CONFIRM_SELECTED_FOREGROUND="$BG" \
-       GUM_CONFIRM_SELECTED_BACKGROUND="$ACCENT" GUM_CONFIRM_UNSELECTED_FOREGROUND="$DIM" \
-       GUM_SPIN_SPINNER_FOREGROUND="$ACCENT" GUM_SPIN_TITLE_FOREGROUND="$FG" \
-       GUM_STYLE_FOREGROUND="$FG" FOREGROUND="$FG"
+PATH=/usr/local/bin:/usr/local/sbin:$PATH
 
 GUM=$(command -v gum 2>/dev/null)
 [ -n "$NO_GUM" ] && GUM=   # escape hatch: NO_GUM=1 → plain prompts
+
 LOG=/var/log/vellum-install.log
 touch "$LOG" 2>/dev/null || LOG=/tmp/vellum-install.log
 
@@ -42,16 +36,20 @@ for d in /tmp /var/tmp /root; do
 done
 CONF="$TMPDIR_V/vellum-install.conf"
 
-# --- prompt primitives (gum, with a POSIX fallback) ---------------------------
+# gum runs as TERM=screen-16color: ANSI-16 profile, zero terminal queries.
+gum_() { TERM=screen-16color "$GUM" "$@"; }
+
+# --- prompt primitives ----------------------------------------------------
+# UI goes to stderr (like gum); the answer to stdout for $(...) capture.
 
 say()  { printf '%s\n' "$*"; }
 head_() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 
-# These run inside $(...) — UI goes to stderr (like gum), the answer to stdout.
 choose() { # choose <header> <item...>
     _h="$1"; shift
     if [ -n "$GUM" ]; then
-        printf '%s\n' "$@" | "$GUM" choose --header "$_h" --height 15
+        printf '%s\n' "$@" | gum_ choose --header "$_h" --height 15 \
+            --cursor.foreground=12 --header.foreground=8 --item.foreground=15
     else
         say "$_h" >&2; _i=1
         for _it in "$@"; do say "  $_i) $_it" >&2; _i=$((_i+1)); done
@@ -67,9 +65,11 @@ choose() { # choose <header> <item...>
 ask() { # ask <prompt> [default] [placeholder]
     _p="$1"; _d="$2"; _ph="$3"
     if [ -n "$GUM" ]; then
-        if [ -n "$_d" ]; then set -- --value "$_d"; else set --; fi
-        if [ -n "$_ph" ]; then set -- "$@" --placeholder "$_ph"; fi
-        "$GUM" input --prompt "$_p " "$@"
+        # --placeholder for the default (a --value would take typed text as
+        # an append, not a replace); empty answer → the default.
+        _r=$(gum_ input --prompt "$_p " --width 60 --prompt.foreground=12 \
+            --placeholder "${_ph:-$_d}")
+        say "${_r:-$_d}"
     else
         printf '%s%s: ' "$_p" "${_d:+ [$_d]}" >&2; read -r _a || return 1
         say "${_a:-$_d}"
@@ -78,7 +78,7 @@ ask() { # ask <prompt> [default] [placeholder]
 
 ask_pw() { # ask_pw <prompt>
     if [ -n "$GUM" ]; then
-        "$GUM" input --password --prompt "$1 "
+        gum_ input --password --prompt "$1 " --width 60 --prompt.foreground=12
     else
         stty -echo 2>/dev/null; printf '%s: ' "$1" >&2; read -r _a; stty echo 2>/dev/null; echo >&2
         say "$_a"
@@ -87,27 +87,32 @@ ask_pw() { # ask_pw <prompt>
 
 confirm() { # confirm <question>
     if [ -n "$GUM" ]; then
-        "$GUM" confirm "$1" --affirmative "Yes" --negative "No"
+        gum_ confirm "$1" --affirmative "Yes" --negative "No" \
+            --prompt.foreground=15 --selected.foreground=0 --selected.background=12
     else
         printf '%s [y/N] ' "$1" >&2; read -r _a || return 1
         [ "$_a" = "y" ] || [ "$_a" = "Y" ]
     fi
 }
 
-# --- unattended config --------------------------------------------------------
-# Omarchy model: a config on the media or a second drive skips the wizard.
+# --- unattended config ----------------------------------------------------
+# Omarchy model: a vellum-install.conf on any drive skips the wizard.
 find_config() {
-    [ -n "$VELLUM_CONFIG" ] && [ -f "$VELLUM_CONFIG" ] && { cp "$VELLUM_CONFIG" "$CONF"; return 0; }
+    if [ -n "$VELLUM_CONFIG" ] && [ -f "$VELLUM_CONFIG" ]; then
+        cp "$VELLUM_CONFIG" "$CONF"; return 0
+    fi
+    # Already mounted somewhere (e.g. injected into the ISO root)?
+    for p in / /mnt /tmp/vmnt; do
+        [ -f "$p/vellum-install.conf" ] && { cp "$p/vellum-install.conf" "$CONF"; return 0; }
+    done
     mkdir -p /tmp/vmnt
     for dev in $(sysctl -n kern.disks 2>/dev/null); do
         for part in "/dev/${dev}"*; do
             [ "$part" = "/dev/${dev}" ] && continue
             [ -c "$part" ] || continue
-            _mounted=
-            for _fs in ufs msdosfs cd9660 ext2fs; do
-                mount -r -t "$_fs" "$part" /tmp/vmnt 2>/dev/null && { _mounted=1; break; }
-            done
-            [ -n "$_mounted" ] || continue
+            _fs=$(fstyp "$part" 2>/dev/null) || continue
+            case "$_fs" in ufs|msdosfs|cd9660|ext2fs|ntfs) ;; *) continue ;; esac
+            mount -r -t "$_fs" "$part" /tmp/vmnt 2>/dev/null || continue
             if [ -f /tmp/vmnt/vellum-install.conf ]; then
                 cp /tmp/vmnt/vellum-install.conf "$CONF"
                 umount /tmp/vmnt; chmod 600 "$CONF"
@@ -122,20 +127,14 @@ find_config() {
 
 run_engine() {
     chmod 600 "$CONF"
-    say "Config: $CONF (log: $LOG)"
-    # Omarchy-style: a gum spinner wraps the engine while --show-output lets
-    # its milestone lines scroll through. Without gum, output streams plain.
-    # Either way everything is tee'd to the log.
-    if [ -n "$GUM" ]; then
-        "$GUM" spin --show-output --spinner dot \
-            --title "Installing Vellum — this takes a few minutes" -- \
-            sh -c "/usr/local/bin/vellum install-system --config '$CONF'; echo \$? > '$TMPDIR_V/.rc'" \
-            2>&1 | tee -a "$LOG"
-    else
-        { /usr/local/bin/vellum install-system --config "$CONF"; echo $? > "$TMPDIR_V/.rc"; } 2>&1 | tee -a "$LOG"
-    fi
-    rc=$(cat "$TMPDIR_V/.rc" 2>/dev/null)
-    rm -f "$TMPDIR_V/.rc"; rm -P "$CONF" 2>/dev/null || rm -f "$CONF"
+    say "Log: $LOG"
+    head_ "Installing Vellum"
+    # Attached straight to the console — no tee, so fetch progress bars and
+    # the engine's [n/7] step lines render in place. The engine appends to
+    # the log itself.
+    /usr/local/bin/vellum install-system --config "$CONF"
+    rc=$?
+    rm -f "$CONF"
     [ "$rc" = 0 ]
 }
 
@@ -162,7 +161,7 @@ if find_config; then
     exit 0
 fi
 
-# --- keymap -------------------------------------------------------------------
+# --- keymap ---------------------------------------------------------------
 head_ "Keyboard layout"
 KM=$(choose "Choose your keymap" \
     "English (US)" "English (US, Dvorak)" "Danish" "Dutch" "Estonian" \
@@ -180,35 +179,45 @@ esac
 # Apply now so typing below matches the choice (same as the old TUI).
 kbdcontrol -l "$KEYMAP" >/dev/null 2>&1
 
-# --- disk ---------------------------------------------------------------------
+# --- disk -------------------------------------------------------------------
 head_ "Target disk"
 DISKS=$(/usr/local/bin/vellum install-system --list-disks 2>/dev/null)
 [ -n "$DISKS" ] || { say "No candidate disks found (kern.disks empty)."; exit 1; }
-# display "label (name)"; name is unique → map back after the choice.
-MENU=$(printf '%s\n' "$DISKS" | awk -F'\t' '{printf "%s (%s)\n", $2, $1}')
-# Choose over lines directly — the helper would word-split labels with spaces.
+# "name — description" per line; the name is the first field of the choice.
+MENU=$(printf '%s\n' "$DISKS" | awk -F'\t' '{print $1 " — " $2}')
 if [ -n "$GUM" ]; then
-    PICK=$(printf '%s\n' "$MENU" | "$GUM" choose --header "Erase and install onto:" --height 15)
-    DISK=$(printf '%s' "$PICK" | sed -n 's/.*(\([^()]*\))$/\1/p')
+    PICK=$(printf '%s\n' "$MENU" | gum_ choose --header "Erase and install onto:" \
+        --height 15 --cursor.foreground=12 --header.foreground=8 --item.foreground=15)
 else
-    say "Erase and install onto:"
-    _i=1; printf '%s\n' "$MENU" | while read -r _l; do echo "  $_i) $_l"; _i=$((_i+1)); done
-    printf 'Choice [1]: '; read -r _n
-    PICK=$(printf '%s\n' "$MENU" | sed -n "${_n:-1}p")
-    DISK=$(printf '%s' "$PICK" | sed -n 's/.*(\([^()]*\))$/\1/p')
+    say "Erase and install onto:" >&2
+    _i=0; printf '%s\n' "$MENU" | while read -r _l; do _i=$((_i+1)); echo "  $_i) $_l" >&2; done
+    printf 'Choice [1]: ' >&2; read -r _n
+    case "$_n" in ''|*[!0-9]*) _n=1 ;; esac
+    PICK=$(printf '%s\n' "$MENU" | sed -n "${_n}p")
 fi
+DISK=${PICK%% *}
 [ -n "$DISK" ] || { say "No disk selected."; exit 1; }
 
-# --- identity -----------------------------------------------------------------
+# --- identity ---------------------------------------------------------------
 head_ "Your account"
 while :; do
     USERNAME=$(ask "Login name" "" "lowercase, e.g. carlos") || exit 1
     printf '%s' "$USERNAME" | grep -qE '^[a-z_][a-z0-9_-]{0,31}$' && break
     say "Use lowercase letters, digits, '_' or '-', starting with a letter."
 done
-FULLNAME=$(ask "Full name" "" "optional") || exit 1
-EMAIL=$(ask "Email" "" "optional") || exit 1
-HOSTNAME=$(ask "Hostname" "vellum" "") || exit 1
+while :; do
+    FULLNAME=$(ask "Full name" "" "optional") || exit 1
+    case "$FULLNAME" in *:*|*\"*|*$'\n'*) say "No ':' or quotes, please." ;; *) break ;; esac
+done
+while :; do
+    EMAIL=$(ask "Email" "" "optional") || exit 1
+    case "$EMAIL" in *:*|*\"*|*$'\n'*) say "No ':' or quotes, please." ;; *) break ;; esac
+done
+while :; do
+    HOSTNAME=$(ask "Hostname" "vellum" "") || exit 1
+    printf '%s' "$HOSTNAME" | grep -qE '^[a-z0-9]([a-z0-9.-]{0,61}[a-z0-9])?$' && break
+    say "Lowercase letters, digits, '-' or '.', not starting/ending with one."
+done
 
 while :; do
     P1=$(ask_pw "Password") || exit 1
@@ -218,7 +227,7 @@ while :; do
     say "Passwords don't match — try again."
 done
 
-# --- confirm + go -------------------------------------------------------------
+# --- confirm + go -----------------------------------------------------------
 head_ "Summary"
 say "  disk:     /dev/$DISK"
 say "  hostname: $HOSTNAME"
@@ -229,14 +238,15 @@ confirm "Erase ALL of /dev/$DISK and install Vellum?" || { say "Aborted — noth
 
 umask 077
 {
-    echo "disk=$DISK";      echo "hostname=$HOSTNAME"; echo "username=$USERNAME"
-    echo "fullname=$FULLNAME"; echo "email=$EMAIL";      echo "keymap=$KEYMAP"
-    echo "password=$P1";    echo "erase=yes"
+    echo "disk=$DISK";        echo "hostname=$HOSTNAME";  echo "username=$USERNAME"
+    echo "fullname=$FULLNAME"; echo "email=$EMAIL";        echo "keymap=$KEYMAP"
+    echo "password=$P1";      echo "erase=yes"
 } > "$CONF"
 
 if run_engine; then
     head_ "Done"
     say "Vellum is installed on /dev/$DISK."
+    say "Remove the install media before rebooting."
     confirm "Reboot now?" && { sync; reboot; }
 else
     say "Install failed — full log: $LOG"
