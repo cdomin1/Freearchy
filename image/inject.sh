@@ -188,6 +188,8 @@ live_packages() {
         env ASSUME_ALWAYS_YES=yes pkg -r "$ROOT" install -y "$_p" >/dev/null 2>&1 \
             || echo "!! optional package $_p unavailable — skipping" >&2
     done
+    # downloaded .pkg blobs in var/cache/pkg are dead weight on the image
+    env ASSUME_ALWAYS_YES=yes pkg -r "$ROOT" clean -a 2>/dev/null
     umount "$ROOT/dev" 2>/dev/null
     rm -f "$ROOT/etc/resolv.conf"
     # restore the stock symlink — live runtime resolv.conf lands in

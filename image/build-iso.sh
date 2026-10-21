@@ -48,6 +48,8 @@ chmod -R u+w "$WORK/tree"
 umount "$WORK/mnt"
 mdconfig -d -u "$MD"
 MD=""
+# free ~2GB — the source ISO is only needed for the tree copy
+rm -f "$SRC" "$SRC.xz"
 
 inject_live "$WORK/tree"
 
