@@ -84,4 +84,4 @@ rc=$?
 echo
 echo "vellum-setup exited (status $rc)."
 echo "Rerun with 'vellum-setup'; 'exit' returns to runconsoles."
-/bin/sh
+PATH=/usr/local/bin:/usr/local/sbin:$PATH /bin/sh
