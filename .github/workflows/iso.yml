@@ -64,7 +64,7 @@ jobs:
             cp target/release/vellum target/release/vellum-wm /tmp/
             cargo clean
             pkg clean -ay
-            VELLUM_BIN=/tmp/vellum sh image/build-image.sh 15.1
+            VELLUM_BIN=/tmp/vellum WM_BIN=/tmp/vellum-wm sh image/build-image.sh 15.1
             VELLUM_BIN=/tmp/vellum WM_BIN=/tmp/vellum-wm \
                 sh image/build-iso.sh 15.1
             # Target-based names: usb-installer = dd to a stick for bare

@@ -883,13 +883,24 @@ fn install_vellum(log: &dyn Fn(&str)) -> Result<()> {
     }
 
     // The running installer binary is the CLI the new system needs — copy
-    // it so first boot doesn't have to compile it.
+    // it so first boot doesn't have to compile it. vellum-wm travels the
+    // same way when the media embeds it (inject.sh WM_BIN); without it
+    // the installed xinitrc has no window manager to exec.
     fs::create_dir_all(format!("{MNT}/usr/local/bin"))?;
     if let Ok(exe) = std::env::current_exe() {
         let target = format!("{MNT}/usr/local/bin/vellum");
         if fs::copy(&exe, &target).is_ok() {
             let _ = fs::set_permissions(&target, fs::Permissions::from_mode(0o755));
         }
+    }
+    let wm = Path::new("/usr/local/bin/vellum-wm");
+    if wm.exists() {
+        let target = format!("{MNT}/usr/local/bin/vellum-wm");
+        if fs::copy(wm, &target).is_ok() {
+            let _ = fs::set_permissions(&target, fs::Permissions::from_mode(0o755));
+        }
+    } else {
+        log("warn: no vellum-wm on this media — desktop won't start after install");
     }
 
     // Firstboot service (from the repo we just placed).

@@ -83,6 +83,16 @@ inject_vellum() {
     else
         echo "!! VELLUM_BIN unset — image will fall back to stock bsdinstall"
     fi
+    # The window manager must ride along on install media too — the engine
+    # copies it from /usr/local/bin to the target (installed desktop needs
+    # a WM or xinitrc has nothing to exec).
+    if [ -n "$WM_BIN" ] && [ -f "$WM_BIN" ]; then
+        echo "==> Embedding vellum-wm binary"
+        cp "$WM_BIN" "$ROOT/usr/local/bin/vellum-wm"
+        chmod 755 "$ROOT/usr/local/bin/vellum-wm"
+    else
+        echo "!! WM_BIN unset — installs from this media get no window manager" >&2
+    fi
 
     echo "==> Pointing rc.local at the vellum installer"
     if grep -q bsdinstall "$ROOT/etc/rc.local" 2>/dev/null; then
@@ -142,13 +152,6 @@ inject_live() {
     live_packages "$ROOT"
     live_user "$ROOT"
     live_boot "$ROOT"
-    if [ -n "$WM_BIN" ] && [ -f "$WM_BIN" ]; then
-        echo "==> Embedding vellum-wm binary"
-        cp "$WM_BIN" "$ROOT/usr/local/bin/vellum-wm"
-        chmod 755 "$ROOT/usr/local/bin/vellum-wm"
-    else
-        echo "!! WM_BIN unset — live desktop will have no window manager" >&2
-    fi
 }
 
 # Package manifests → pkg -r into the image root (chroot-less install).
