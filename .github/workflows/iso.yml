@@ -30,6 +30,14 @@ jobs:
     env:
       ARCH: ${{ matrix.arch }}
     steps:
+      # The VM's disk image lives on the host — Xcode + friends are ~20GB
+      # the FreeBSD build will never touch.
+      - name: Free runner disk space
+        run: |
+          df -h /
+          sudo rm -rf /Applications/Xcode*.app /Applications/Xcode*.xip || true
+          rm -rf ~/Library/Developer/Xcode/DerivedData ~/Library/Developer/CoreSimulator || true
+          df -h /
       - name: Build vellum + remaster image inside FreeBSD VM
         uses: vmactions/freebsd-vm@v1
         env:

@@ -38,6 +38,7 @@ trap cleanup EXIT
 echo "==> Fetching $IMG"
 [ -f "$IMG" ] || fetch -o "$IMG.xz" "${BASE_URL}/${IMG}.xz"
 [ -f "$IMG" ] || unxz "$IMG.xz"
+rm -f "$IMG.xz"
 
 echo "==> Attaching image"
 MD=$(mdconfig -a -t vnode -f "$IMG")
